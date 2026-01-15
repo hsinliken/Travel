@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, KBDocument, User, Language } from './types';
 import Navigation from './components/Navigation';
@@ -5,7 +6,7 @@ import KnowledgeBase from './components/KnowledgeBase';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import Background from './components/Background';
-import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB } from './db';
+import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB, clearAllDocumentsFromDB } from './db';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.HOME);
@@ -98,6 +99,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearDocuments = async () => {
+    try {
+      await clearAllDocumentsFromDB();
+      setDocuments([]); // 即時清空 UI 狀態
+    } catch (error) {
+      console.error("Failed to clear documents:", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col font-sans selection:bg-sky-100 bg-slate-50/30 overflow-hidden">
       <Background />
@@ -132,11 +143,11 @@ const App: React.FC = () => {
                 onAddDoc={addDocument} 
                 onRemoveDoc={removeDocument} 
                 onUpdateDoc={updateDocument}
+                onClearAll={handleClearDocuments}
                 lang={lang}
               />
             )}
             
-            {/* Show footer only on admin views to save space for chat */}
             {view !== ViewState.HOME && (
               <footer className="bg-slate-900/95 backdrop-blur-md text-slate-400 py-12 text-center text-xs border-t border-slate-800 relative z-10">
                 <div className="container mx-auto px-4">

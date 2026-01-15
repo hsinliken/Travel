@@ -11,10 +11,11 @@ interface AdminDashboardProps {
   onAddDoc: (doc: Omit<KBDocument, 'id'>) => Promise<void>;
   onRemoveDoc: (id: string) => void;
   onUpdateDoc: (id: string, updates: Partial<KBDocument>) => Promise<void>;
+  onClearAll: () => Promise<void>;
   lang: Language;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, lang }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, onClearAll, lang }) => {
   const t = translations[lang];
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -58,7 +59,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
     try {
       const success = await syncFromCloud();
       if (success) {
-        window.location.reload(); 
+        setStatus("Cloud database pulled. Refreshing UI...");
+        setTimeout(() => window.location.reload(), 1000);
       } else {
         setStatus("Cloud database is empty or unreachable.");
         setTimeout(() => setStatus(null), 3000);
@@ -102,6 +104,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
     }
   };
 
+  const handleClearAll = async () => {
+    const confirmMsg = lang === 'zh-TW' 
+      ? "確定要清空所有知識庫內容嗎？這將無法復原。" 
+      : "Are you sure you want to clear the ENTIRE knowledge base? This cannot be undone.";
+    
+    if (window.confirm(confirmMsg)) {
+      setIsProcessing(true);
+      setStatus("Clearing database...");
+      try {
+        await onClearAll();
+        setStatus("Database cleared. Remember to 'Push' if you want to clear cloud state too.");
+        setTimeout(() => setStatus(null), 3000);
+      } catch (e: any) {
+        console.error("Clear error:", e);
+        setStatus(`Error: ${e.message || "Failed to clear database."}`);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,11 +133,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
     setStatus(`${t.processing} "${file.name}"...`);
 
     try {
-      // 1. 先將原始文件上傳到 Firebase Storage 並取得連結
       setStatus(`Uploading original file to cloud...`);
       const cloudUrl = await uploadRawFile(file);
 
-      // 2. 進行 AI 文字提取
       setStatus(`Extracting text with AI...`);
       const extractedText = await extractTextFromFile(file);
       
@@ -122,7 +143,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
         name: file.name,
         type: file.type || 'unknown',
         sourceType: 'file',
-        url: cloudUrl, // 儲存 Firebase 下載連結
+        url: cloudUrl,
         content: extractedText,
         uploadDate: new Date().toISOString(),
         reviewer: reviewerInput || 'Admin',
@@ -220,17 +241,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
           </div>
         </div>
 
-        {/* Local File Management */}
+        {/* Local Storage Management */}
         <div className="bg-white border border-slate-200 rounded-[40px] p-8 shadow-xl flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <h3 className="font-black uppercase tracking-widest text-slate-800 text-sm">Local Storage</h3>
               </div>
-              <h3 className="font-black uppercase tracking-widest text-slate-800 text-sm">SQLite Local File</h3>
+              <button 
+                onClick={handleClearAll}
+                disabled={isProcessing}
+                className="text-red-500 hover:text-red-700 font-black text-[9px] uppercase tracking-widest px-2 py-1 rounded hover:bg-red-50 transition-all active:scale-95"
+              >
+                Clear All
+              </button>
             </div>
             <p className="text-slate-500 text-xs font-medium mb-6">
-              Download or upload the physical <strong>.sqlite</strong> database file for manual portability.
+              Export physical <strong>.sqlite</strong> for backup or Import to overwrite local state.
             </p>
           </div>
           <div className="flex gap-3">
@@ -243,49 +273,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
         </div>
       </div>
 
-      {/* Error & CORS Help Area */}
+      {/* Status Bar */}
       {status && (
-        <div className={`mb-8 p-6 border-2 rounded-[32px] flex flex-col gap-4 animate-fade-in shadow-lg ${status.startsWith('Error') ? 'bg-red-50 text-red-700 border-red-100' : 'bg-sky-50 text-sky-800 border-sky-100'}`}>
-           <div className="flex items-center gap-4">
-             <div className={`w-3 h-3 rounded-full ${status.startsWith('Error') ? 'bg-red-500 animate-pulse' : 'bg-sky-500'}`}></div>
-             <span className="font-black uppercase tracking-wider text-sm">{status}</span>
-             {showCorsHelp && (
-               <button 
-                 onClick={() => setShowCorsHelp(!showCorsHelp)}
-                 className="ml-auto bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
-               >
-                 {showCorsHelp ? "Close Help" : "Fix 404 Bucket Not Found?"}
-               </button>
-             )}
-           </div>
-           
-           {showCorsHelp && (
-             <div className="bg-white/90 p-6 rounded-2xl border border-red-200 text-xs text-slate-800 space-y-4 leading-relaxed shadow-inner">
-               <div className="flex items-center gap-2 text-red-700 font-black uppercase tracking-widest mb-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                 {lang === 'zh-TW' ? "解決 404 Bucket Not Found" : "Fixing 404 Bucket Not Found"}
-               </div>
-               <p className="font-bold">如果指令出現 404，通常是因為 Bucket 名稱不對。</p>
-               <ol className="list-decimal pl-5 space-y-4 font-medium">
-                 <li>前往 <a href="https://console.firebase.google.com/" target="_blank" className="text-sky-600 underline font-bold">Firebase Console</a> &gt; <strong>Storage</strong>。</li>
-                 <li>查看畫面上方的 <code>gs://</code> 地址。</li>
-                 <li><strong>複製下方指令</strong>並在 Cloud Shell 執行：
-                   
-                   <div className="mt-4 space-y-3">
-                     <p className="text-[10px] font-black uppercase text-slate-400">方案 A (新版專案最常見):</p>
-                     <div className="bg-slate-900 text-sky-400 p-4 rounded-xl font-mono overflow-x-auto select-all">
-                       {`echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.firebasestorage.app`}
-                     </div>
-                   </div>
-                 </li>
-                 <li className="text-red-600 font-bold">注意：執行前請確認您的 Firebase Storage 已經點擊「開始使用」並選擇了區域！</li>
-               </ol>
-             </div>
-           )}
+        <div className={`mb-8 p-6 border-2 rounded-[32px] flex items-center gap-4 animate-fade-in shadow-lg ${status.startsWith('Error') ? 'bg-red-50 text-red-700 border-red-100' : 'bg-sky-50 text-sky-800 border-sky-100'}`}>
+           <div className={`w-3 h-3 rounded-full ${status.startsWith('Error') ? 'bg-red-500 animate-pulse' : 'bg-sky-500 animate-pulse'}`}></div>
+           <span className="font-black uppercase tracking-wider text-sm">{status}</span>
         </div>
       )}
 
-      {/* Main Admin UI */}
+      {/* Upload Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12 bg-white/40 backdrop-blur-md p-8 rounded-[32px] border border-white/60 shadow-sm">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">{t.dashboard}</h1>
@@ -333,7 +329,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
               <h4 className="text-slate-800 font-black mb-1 truncate text-lg">{doc.name}</h4>
               <p className="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em] mb-6">{doc.sourceType === 'web' ? t.webSource : t.fileSource} • {doc.type}</p>
               
-              {/* 如果有 URL，顯示點擊查看全文按鈕 */}
               {doc.url && (
                 <a 
                   href={doc.url} 

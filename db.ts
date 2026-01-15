@@ -204,3 +204,9 @@ export const deleteDocumentFromDB = async (id: string): Promise<void> => {
   db.run("DELETE FROM documents WHERE id = ?", [id]);
   await persistLocal();
 };
+
+export const clearAllDocumentsFromDB = async (): Promise<void> => {
+  const db = await initDB();
+  db.run("DELETE FROM documents");
+  await persistLocal();
+};
