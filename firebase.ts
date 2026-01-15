@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getStorage, ref, uploadBytes, getBytes, FirebaseStorage } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, getBytes, FirebaseStorage } from "firebase/storage";
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
@@ -26,6 +26,24 @@ try {
 }
 
 export { storage };
+
+/**
+ * 上傳原始文件並獲取下載連結
+ */
+export const uploadRawFile = async (file: File): Promise<string> => {
+  if (!storage) throw new Error("Firebase Storage not initialized.");
+  try {
+    // 使用時間戳避免檔名衝突
+    const filePath = `raw_documents/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, filePath);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (error: any) {
+    console.error("Raw File Upload Error:", error);
+    throw error;
+  }
+};
 
 export const uploadDatabaseFile = async (data: Uint8Array): Promise<void> => {
   if (!storage) throw new Error("Firebase Storage not initialized.");

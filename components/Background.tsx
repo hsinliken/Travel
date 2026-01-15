@@ -18,7 +18,11 @@ const Background: React.FC = () => {
         return;
       }
 
-      const apiKey = process.env.API_KEY!;
+      const apiKey = process.env.API_KEY;
+      if (!apiKey || apiKey === "null" || apiKey === "undefined") {
+        setBgImage(FALLBACK_IMAGE);
+        return;
+      }
 
       setIsLoading(true);
       try {
@@ -45,8 +49,8 @@ const Background: React.FC = () => {
             }
           }
         }
-      } catch (error) {
-        console.error("Background generation failed:", error);
+      } catch (error: any) {
+        console.warn("Background generation failed (likely API Key issue):", error.message);
         setBgImage(FALLBACK_IMAGE);
       } finally {
         setIsLoading(false);

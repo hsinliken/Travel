@@ -4,6 +4,7 @@ import { KBDocument, Language } from '../types';
 import { extractTextFromFile, extractTextFromUrl } from '../services/geminiService';
 import { translations } from '../translations';
 import { syncToCloud, syncFromCloud, exportDBFile, importDBFile } from '../db';
+import { uploadRawFile } from '../firebase';
 
 interface AdminDashboardProps {
   documents: KBDocument[];
@@ -109,12 +110,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
     setStatus(`${t.processing} "${file.name}"...`);
 
     try {
+      // 1. 先將原始文件上傳到 Firebase Storage 並取得連結
+      setStatus(`Uploading original file to cloud...`);
+      const cloudUrl = await uploadRawFile(file);
+
+      // 2. 進行 AI 文字提取
+      setStatus(`Extracting text with AI...`);
       const extractedText = await extractTextFromFile(file);
       
       const newDoc: Omit<KBDocument, 'id'> = {
         name: file.name,
         type: file.type || 'unknown',
         sourceType: 'file',
+        url: cloudUrl, // 儲存 Firebase 下載連結
         content: extractedText,
         uploadDate: new Date().toISOString(),
         reviewer: reviewerInput || 'Admin',
@@ -122,10 +130,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       };
 
       await onAddDoc(newDoc);
-      setStatus(null);
-    } catch (error) {
+      setStatus("File successfully indexed with cloud link!");
+      setTimeout(() => setStatus(null), 3000);
+    } catch (error: any) {
       console.error(error);
-      setStatus(`Error: Failed to process document.`);
+      setStatus(`Error: ${error.message || "Failed to process document."}`);
     } finally {
       setIsProcessing(false);
       if (e.target) e.target.value = '';
@@ -323,6 +332,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
               </div>
               <h4 className="text-slate-800 font-black mb-1 truncate text-lg">{doc.name}</h4>
               <p className="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em] mb-6">{doc.sourceType === 'web' ? t.webSource : t.fileSource} • {doc.type}</p>
+              
+              {/* 如果有 URL，顯示點擊查看全文按鈕 */}
+              {doc.url && (
+                <a 
+                  href={doc.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mb-4 inline-flex items-center gap-2 text-[10px] font-black text-sky-600 hover:text-sky-800 uppercase tracking-widest bg-sky-50 px-3 py-2 rounded-xl border border-sky-100 transition-colors w-fit"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  View Full File
+                </a>
+              )}
+
               <div className="bg-slate-50 rounded-2xl p-4 flex-grow overflow-hidden italic text-xs text-slate-500 line-clamp-6">{doc.content}</div>
           </div>
         ))}

@@ -117,16 +117,27 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
                         {t.sourcesFound}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {msg.sources.map(src => (
-                          <a 
-                            key={src} 
-                            href={src.startsWith('http') ? src : '#'} 
-                            target={src.startsWith('http') ? "_blank" : "_self"}
-                            className="px-3 py-1 bg-slate-50/50 text-slate-500 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300 transition-all truncate max-w-[240px]"
-                          >
-                            {src.length > 35 ? src.substring(0, 35) + '...' : src}
-                          </a>
-                        ))}
+                        {msg.sources.map(src => {
+                          const isUrl = src.startsWith('http');
+                          // 尋找對應的 doc 名稱來美化顯示
+                          const doc = documents.find(d => d.url === src || d.name === src);
+                          const displayName = doc ? doc.name : (src.length > 35 ? src.substring(0, 35) + '...' : src);
+                          
+                          return (
+                            <a 
+                              key={src} 
+                              href={isUrl ? src : '#'} 
+                              target={isUrl ? "_blank" : "_self"}
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-slate-50/50 text-slate-500 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300 transition-all truncate max-w-[240px] flex items-center gap-1.5"
+                            >
+                              {isUrl && (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                              )}
+                              {displayName}
+                            </a>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

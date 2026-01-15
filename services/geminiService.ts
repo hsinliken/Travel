@@ -6,8 +6,24 @@ import { KBDocument, Language } from "../types";
  * Helper to get Gemini client using process.env.API_KEY exclusively.
  */
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY!;
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === "null" || apiKey === "undefined") {
+    throw new Error("Missing API_KEY. Please set it in Vercel Environment Variables.");
+  }
   return new GoogleGenAI({ apiKey });
+};
+
+const handleGeminiError = (error: any, lang: Language): string => {
+  const msg = error?.message || "";
+  if (msg.includes("leaked")) {
+    return lang === 'zh-TW' 
+      ? "⚠️ API 金鑰已被 Google 封鎖（疑似外流）。請至 AI Studio 重新產生金鑰並更新環境變數。" 
+      : "⚠️ API Key has been leaked and blocked by Google. Please rotate your key in AI Studio.";
+  }
+  if (msg.includes("API key not found") || msg.includes("invalid")) {
+    return lang === 'zh-TW' ? "⚠️ 無效的 API 金鑰，請檢查設定。" : "⚠️ Invalid API Key.";
+  }
+  return `Technical difficulty: ${msg || "Unknown connection error"}`;
 };
 
 export const extractTextFromFile = async (file: File): Promise<string> => {
@@ -35,9 +51,9 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
     });
 
     return response.text || "No text could be extracted.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error extracting text:", error);
-    throw new Error("Failed to process document content.");
+    throw new Error(handleGeminiError(error, 'zh-TW'));
   }
 };
 
@@ -48,16 +64,16 @@ export const extractTextFromUrl = async (url: string): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: `Perform a comprehensive travel information extraction for: ${url}. Cover itineraries, benefits, and pricing.`,
+      contents: { parts: [{ text: `Perform a comprehensive travel information extraction for: ${url}. Cover itineraries, benefits, and pricing.` }] },
       config: {
         tools: [{ googleSearch: {} }]
       }
     });
 
     return response.text || "Failed to extract content from URL.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error extracting text from URL:", error);
-    throw new Error("Failed to fetch website content.");
+    throw new Error(handleGeminiError(error, 'zh-TW'));
   }
 };
 
@@ -66,38 +82,39 @@ export const queryKnowledgeBase = async (
   documents: KBDocument[],
   lang: Language
 ): Promise<{ answer: string; sources: string[] }> => {
-  const ai = getAiClient();
-  const model = 'gemini-3-flash-preview';
-
-  if (documents.length === 0) {
-    return {
-      answer: lang === 'en' ? "Knowledge base is empty." : "知識庫為空。",
-      sources: []
-    };
-  }
-
-  const context = documents.map(doc => {
-    const header = doc.sourceType === 'web' ? `[Source URL: ${doc.url}]` : `[Source File: ${doc.name}]`;
-    return `${header}\n${doc.content}`;
-  }).join('\n\n---\n\n');
-
-  const systemInstruction = `
-    You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊).
-    Respond in ${lang}. Use the provided context to answer accurately. 
-    Mention specific sources used in your explanation.
-  `;
-
   try {
+    const ai = getAiClient();
+    const model = 'gemini-3-flash-preview';
+
+    if (documents.length === 0) {
+      return {
+        answer: lang === 'en' ? "Knowledge base is empty." : "知識庫目前沒有資料，請管理員上傳文件。",
+        sources: []
+      };
+    }
+
+    const context = documents.map(doc => {
+      const header = doc.sourceType === 'web' ? `[Source URL: ${doc.url}]` : `[Source File: ${doc.name}]`;
+      return `${header}\n${doc.content}`;
+    }).join('\n\n---\n\n');
+
+    const systemInstruction = `
+      You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊).
+      Respond in ${lang}. Use the provided context to answer accurately. 
+      If the information is not in the context, say you don't know based on current data.
+      Always list sources clearly at the end of your response.
+    `;
+
     const response = await ai.models.generateContent({
       model,
-      contents: `Context:\n${context}\n\nQuestion: ${queryText}`,
+      contents: { parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] },
       config: {
         systemInstruction,
-        temperature: 0.3,
+        temperature: 0.2,
       }
     });
 
-    const answer = response.text || "Error processing request.";
+    const answer = response.text || "I processed your request but couldn't generate a text answer.";
     
     const usedSources = documents
       .filter(doc => answer.includes(doc.name) || (doc.url && answer.includes(doc.url)))
@@ -107,10 +124,10 @@ export const queryKnowledgeBase = async (
       answer, 
       sources: Array.from(new Set(usedSources)) 
     };
-  } catch (error) {
-    console.error("Error querying RAG:", error);
+  } catch (error: any) {
+    console.error("Critical RAG Error:", error);
     return {
-      answer: "Technical difficulty.",
+      answer: handleGeminiError(error, lang),
       sources: []
     };
   }
