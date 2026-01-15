@@ -33,11 +33,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [formPrompt, setFormPrompt] = useState(settings.systemInstruction);
   const [formModel, setFormModel] = useState(settings.model);
 
-  const checkIsCorsError = (error: any) => {
-    const msg = error?.message || "";
-    return msg.includes("Failed to fetch") || msg.includes("Network Error") || msg.includes("CORS");
-  };
-
   const handlePushToCloud = async () => {
     setIsProcessing(true);
     setStatus("強制推送本地資料庫至雲端...");
