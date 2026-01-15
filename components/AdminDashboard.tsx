@@ -4,7 +4,6 @@ import { KBDocument, Language } from '../types';
 import { extractTextFromFile, extractTextFromUrl } from '../services/geminiService';
 import { translations } from '../translations';
 import { syncToCloud, syncFromCloud, exportDBFile, importDBFile } from '../db';
-import { isCloudSyncEnabled } from '../firebase';
 
 interface AdminDashboardProps {
   documents: KBDocument[];
@@ -14,7 +13,7 @@ interface AdminDashboardProps {
   lang: Language;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, onUpdateDoc, lang }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, lang }) => {
   const t = translations[lang];
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -22,12 +21,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const [urlInput, setUrlInput] = useState('');
   const [reviewerInput, setReviewerInput] = useState('');
   const [publishDateInput, setPublishDateInput] = useState(new Date().toISOString().split('T')[0]);
-  const [editingDoc, setEditingDoc] = useState<KBDocument | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('tp_last_sync'));
 
   const checkIsCorsError = (error: any) => {
     const msg = error?.message || "";
-    return msg.includes("Failed to fetch") || msg.includes("Network Error") || msg.includes("CORS") || msg.includes("CORS");
+    return msg.includes("Failed to fetch") || msg.includes("Network Error") || msg.includes("CORS");
   };
 
   const handlePushToCloud = async () => {
