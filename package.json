@@ -14,7 +14,9 @@
     "firebase": "^10.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "sql.js": "^1.10.3"
+    "sql.js": "^1.10.3",
+    "xlsx": "^0.18.5",
+    "mammoth": "^1.6.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -1,8 +1,8 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { KBDocument, Language, KBSettings } from "../types";
-import * as XLSX from "https://esm.sh/xlsx";
-import mammoth from "https://esm.sh/mammoth";
+import * as XLSX from "xlsx";
+import mammoth from "mammoth";
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -33,7 +33,7 @@ const parseExcelToText = async (file: File): Promise<string> => {
   const workbook = XLSX.read(data);
   let fullText = "";
 
-  workbook.SheetNames.forEach(sheetName => {
+  workbook.SheetNames.forEach((sheetName: string) => {
     const worksheet = workbook.Sheets[sheetName];
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;

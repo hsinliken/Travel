@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { KBDocument, ChatMessage, Language, KBSettings } from '../types';
 import { queryKnowledgeBase } from '../services/geminiService';
 import { translations } from '../translations';
-import * as XLSX from "https://esm.sh/xlsx";
+import * as XLSX from "xlsx";
 
 interface KnowledgeBaseProps {
   documents: KBDocument[];
@@ -42,7 +42,7 @@ const FilePreviewModal: React.FC<{
       const workbook = XLSX.read(arrayBuffer);
       
       const data: { [key: string]: any[][] } = {};
-      workbook.SheetNames.forEach(name => {
+      workbook.SheetNames.forEach((name: string) => {
         const sheet = workbook.Sheets[name];
         data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
       });
