@@ -290,18 +290,23 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {msg.sources.map((src, sIdx) => {
-                        const isUrl = src.startsWith('http');
-                        const doc = documents.find(d => d.url === src || d.name === src);
+                        // 解析格式 "(ID) SourceNameOrUrl"
+                        const idMatch = src.match(/^\((\d+)\)\s+(.*)$/);
+                        const displayLabel = src;
+                        const cleanSrc = idMatch ? idMatch[2] : src;
+                        const isUrl = cleanSrc.startsWith('http');
+                        
+                        const doc = documents.find(d => d.url === cleanSrc || d.name === cleanSrc);
                         return (
                           <button
                             key={sIdx}
                             onClick={() => {
                               if (doc?.url) setPreviewFile({ url: doc.url, name: doc.name });
-                              else if (isUrl) window.open(src, '_blank');
+                              else if (isUrl) window.open(cleanSrc, '_blank');
                             }}
                             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${msg.role === 'user' ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-50 border-slate-200 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-800'}`}
                           >
-                            {isUrl ? new URL(src).hostname : src}
+                            {displayLabel}
                           </button>
                         );
                       })}

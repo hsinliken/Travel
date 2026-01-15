@@ -142,28 +142,45 @@ export const queryKnowledgeBase = async (
       };
     }
 
-    const context = documents.map(doc => {
-      const header = doc.sourceType === 'web' ? `[Source URL: ${doc.url}]` : `[Source File: ${doc.name}]`;
+    // 將所有文件編號，方便 Gemini 引用
+    const context = documents.map((doc, index) => {
+      const header = `[ID: ${index + 1}] Source: ${doc.sourceType === 'web' ? doc.url : doc.name}`;
       return `${header}\n${doc.content}`;
     }).join('\n\n---\n\n');
+
+    const systemInstruction = `${settings.systemInstruction}
+1. Always respond in ${lang}.
+2. Use ONLY the provided context to answer. If the answer is not in the context, say you don't know based on current data.
+3. CRITICAL: When you use information from a document, you MUST cite it at the end of the sentence using its ID in parentheses, e.g., "(1)" or "(1, 3)".
+4. Do NOT include a "Sources" or "References" section at the end of your response. I will generate that part automatically.`;
 
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] }],
       config: {
-        systemInstruction: `${settings.systemInstruction}\nAlways respond in ${lang}. Always list sources clearly at the end.`,
-        temperature: 0.2,
+        systemInstruction,
+        temperature: 0.1, // 降低溫度以提高引用準確性
       }
     });
 
     const answer = response.text || "No response.";
-    const usedSources = documents
-      .filter(doc => answer.includes(doc.name) || (doc.url && answer.includes(doc.url)))
-      .map(doc => doc.sourceType === 'web' ? doc.url! : doc.name);
+    
+    // 從回答中提取被引用的 ID
+    const citedIds = [...answer.matchAll(/\((\d+)\)/g)].map(m => parseInt(m[1]));
+    const uniqueCitedIds = Array.from(new Set(citedIds)).sort((a, b) => a - b);
+    
+    // 根據引用的 ID 建立來源列表，標記序號
+    const usedSources = uniqueCitedIds
+      .filter(id => id > 0 && id <= documents.length)
+      .map(id => {
+        const doc = documents[id - 1];
+        const sourceLabel = doc.sourceType === 'web' ? doc.url! : doc.name;
+        return `(${id}) ${sourceLabel}`;
+      });
 
     return { 
       answer, 
-      sources: Array.from(new Set(usedSources)) 
+      sources: usedSources 
     };
   } catch (error: any) {
     console.error("Critical RAG Error:", error);
