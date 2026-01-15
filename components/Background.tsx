@@ -6,23 +6,26 @@ const Background: React.FC = () => {
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const GEN_PROMPT = "A high-speed modern passenger train traveling through a lush rural landscape in Taiwan, viewed from a side angle. The train is sleek white with red accents, moving along electrified railway tracks. In the foreground and upper frame, vibrant red and orange flamboyant tree blossoms (royal poinciana) form a natural arch, with green branches extending across the sky. Bright blue sky with soft clouds, strong daylight, vivid spring–summer colors. Wide-angle composition, cinematic landscape photography, ultra-high resolution, sharp focus, natural lighting, photorealistic style, balanced composition, peaceful countryside atmosphere.";
+  const GEN_PROMPT = "A high-speed modern passenger train traveling through a lush rural landscape in Taiwan, viewed from a side angle. Sleek white with red accents, flamboyant tree blossoms, cinematic landscape photography.";
   const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=2000&auto=format&fit=crop';
-  const CACHE_KEY = 'tp_bg_gen_v1';
+  const CACHE_KEY = 'tp_bg_gen_v2';
 
   useEffect(() => {
     const generateBackground = async () => {
-      // Check cache first
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         setBgImage(cached);
         return;
       }
 
+      if (!process.env.API_KEY) {
+        setBgImage(FALLBACK_IMAGE);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Always use process.env.API_KEY directly
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
@@ -61,29 +64,20 @@ const Background: React.FC = () => {
     { icon: '🎫', size: 'text-3xl', duration: '25s', delay: '5s', left: '80%' },
     { icon: '🦅', size: 'text-5xl', duration: '35s', delay: '2s', left: '40%' },
     { icon: '🧳', size: 'text-3xl', duration: '28s', delay: '10s', left: '70%' },
-    { icon: '📍', size: 'text-2xl', duration: '22s', delay: '7s', left: '20%' },
-    { icon: '🛤️', size: 'text-4xl', duration: '32s', delay: '12s', left: '60%' },
-    { icon: '🗻', size: 'text-4xl', duration: '40s', delay: '15s', left: '30%' },
-    { icon: '🌊', size: 'text-3xl', duration: '38s', delay: '8s', left: '85%' },
   ];
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none bg-slate-100">
-      {/* Dynamic Generated Background */}
       <div 
-        className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out ${isLoading ? 'blur-sm scale-110' : 'blur-0 scale-100 opacity-60'}`}
+        className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out ${isLoading ? 'blur-sm scale-105' : 'blur-0 opacity-40'}`}
         style={{ backgroundImage: `url('${bgImage || FALLBACK_IMAGE}')` }}
       ></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-50/90 via-white/40 to-slate-50/90"></div>
       
-      {/* Overlays for readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-50/90 via-white/20 to-slate-50/90"></div>
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
-
-      {/* Floating Sticker Layer */}
       {stickers.map((sticker, idx) => (
         <div
           key={idx}
-          className="absolute animate-float opacity-30 select-none drop-shadow-xl"
+          className="absolute animate-float opacity-20 select-none"
           style={{
             left: sticker.left,
             top: '110%',
@@ -97,25 +91,13 @@ const Background: React.FC = () => {
 
       <style>{`
         @keyframes float {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.3;
-          }
-          90% {
-            opacity: 0.3;
-          }
-          100% {
-            transform: translateY(-120vh) rotate(360deg);
-            opacity: 0;
-          }
+          0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+          10% { opacity: 0.2; }
+          90% { opacity: 0.2; }
+          100% { transform: translateY(-120vh) rotate(360deg); opacity: 0; }
         }
         .animate-float {
-          animation-name: float;
-          animation-iteration-count: infinite;
-          animation-timing-function: linear;
+          animation: float linear infinite;
         }
       `}</style>
     </div>
