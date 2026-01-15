@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getStorage, ref, uploadBytes, getDownloadURL, getBytes, FirebaseStorage, settableMetadata } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, getBytes, FirebaseStorage } from "firebase/storage";
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
