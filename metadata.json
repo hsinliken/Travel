@@ -1,0 +1,7 @@
+{
+  "name": "TravelPulse RAG Knowledge Base",
+  "description": "A sophisticated AI-powered travel knowledge base using RAG technology for accurate information retrieval and customer support automation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
