@@ -267,12 +267,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
                    <div className="mt-4 space-y-3">
                      <p className="text-[10px] font-black uppercase text-slate-400">方案 A (新版專案最常見):</p>
                      <div className="bg-slate-900 text-sky-400 p-4 rounded-xl font-mono overflow-x-auto select-all">
-                       echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.firebasestorage.app
+                       {`echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.firebasestorage.app`}
                      </div>
                      
                      <p className="text-[10px] font-black uppercase text-slate-400">方案 B (舊版專案):</p>
                      <div className="bg-slate-900 text-sky-400 p-4 rounded-xl font-mono overflow-x-auto select-all opacity-60">
-                       echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.appspot.com
+                       {`echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.appspot.com`}
                      </div>
                    </div>
                  </li>

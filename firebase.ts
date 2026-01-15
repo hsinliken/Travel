@@ -1,21 +1,10 @@
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getFirestore, 
-  Firestore
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getBytes, FirebaseStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+import { initializeApp } from "firebase/app";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getBytes, FirebaseStorage } from "firebase/storage";
 
-const getEnv = (key: string, fallback: string) => {
-  try {
-    return (window as any).process?.env?.[key] || fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const FIREBASE_API_KEY = getEnv("FIREBASE_API_KEY", "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4");
-const FIREBASE_PROJECT_ID = getEnv("FIREBASE_PROJECT_ID", "travel-ad466");
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
 
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
@@ -49,7 +38,7 @@ export const uploadDatabaseFile = async (data: Uint8Array): Promise<void> => {
   } catch (error: any) {
     console.error("Firebase Upload Error Details:", error);
     if (error?.code === 'storage/unauthorized') {
-      throw new Error("Unauthorized: Check Firebase Storage Rules (allow read, write: if true; for dev).");
+      throw new Error("Unauthorized: Check Firebase Storage Rules.");
     }
     if (error?.message?.includes("Failed to fetch")) {
       throw new Error("CORS Blocked: Please follow the Cloud Shell instructions in the Dashboard.");

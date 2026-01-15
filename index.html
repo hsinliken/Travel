@@ -5,14 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>大鷹旅遊 | 旅遊知識庫</title>
-    <!-- Prevent favicon 404 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>">
     
-    <script>
-      // 簡單的 Polyfill 防止瀏覽器出現 "process is not defined" 錯誤
-      window.process = { env: {} };
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- sql.js WASM 從 CDN 載入以減少打包體積 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,37 +17,26 @@
         margin: 0;
         padding: 0;
       }
-      ::-webkit-scrollbar {
-        width: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        background: rgba(15, 23, 42, 0.05);
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #075985;
-        border-radius: 5px;
-        border: 2px solid rgba(255,255,255,0.1);
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #0369a1;
-      }
       @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
       .animate-fade-in { animation: fade-in 0.5s ease-out; }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.36.0",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
   <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
     <div id="root"></div>
-    <!-- 明確導入入口點，確保 Vercel 等標準託管環境能正確執行 -->
-    <script type="module" src="index.tsx"></script>
+    <!-- Vite 構建入口點 -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
