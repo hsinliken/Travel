@@ -6,8 +6,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getBytes, FirebaseStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
+const getEnv = (key: string, fallback: string) => {
+  try {
+    return (window as any).process?.env?.[key] || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const FIREBASE_API_KEY = getEnv("FIREBASE_API_KEY", "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4");
+const FIREBASE_PROJECT_ID = getEnv("FIREBASE_PROJECT_ID", "travel-ad466");
 
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
@@ -15,13 +23,10 @@ let storage: FirebaseStorage | null = null;
 export const isCloudSyncEnabled = true;
 
 try {
-  // Try newer firebasestorage.app domain first, fallback to appspot.com if needed via custom logic in functions
-  // But for the config, we use the project ID to derive it.
   const firebaseConfig = {
     apiKey: FIREBASE_API_KEY,
     authDomain: `${FIREBASE_PROJECT_ID}.firebaseapp.com`,
     projectId: FIREBASE_PROJECT_ID,
-    // Note: If you get a 404 in the console, manually change this to .firebasestorage.app
     storageBucket: `${FIREBASE_PROJECT_ID}.firebasestorage.app`, 
     messagingSenderId: "123456789",
     appId: "1:123456789:web:abcdef" 

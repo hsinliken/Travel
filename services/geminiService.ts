@@ -2,12 +2,19 @@
 import { GoogleGenAI } from "@google/genai";
 import { KBDocument, Language } from "../types";
 
+const getEnv = (key: string, fallback: string) => {
+  try {
+    return (window as any).process?.env?.[key] || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 /**
  * Helper to get Gemini client. 
- * Using the provided key as default for local stability.
  */
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
+  const apiKey = getEnv("API_KEY", "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4");
   return new GoogleGenAI({ apiKey });
 };
 
