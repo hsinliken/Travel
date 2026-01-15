@@ -28,5 +28,6 @@ export interface User {
 export enum ViewState {
   HOME = 'HOME',
   ADMIN_LOGIN = 'ADMIN_LOGIN',
-  ADMIN_DASHBOARD = 'ADMIN_DASHBOARD'
+  ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
+  USER_MANUAL = 'USER_MANUAL'
 }

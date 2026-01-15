@@ -15,9 +15,10 @@ interface AdminDashboardProps {
   lang: Language;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, onClearAll, lang }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, onUpdateDoc, onClearAll, lang }) => {
   const t = translations[lang];
   const [isProcessing, setIsProcessing] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
   const [reviewerInput, setReviewerInput] = useState('');
@@ -100,7 +101,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   };
 
   const handleClearAll = async () => {
-    console.log("Clear All triggered");
     const confirmMsg = lang === 'zh-TW' 
       ? "確定要清空所有知識庫內容嗎？這將無法復原。" 
       : "Are you sure you want to clear the ENTIRE knowledge base? This cannot be undone.";
@@ -118,6 +118,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       } finally {
         setIsProcessing(false);
       }
+    }
+  };
+
+  const handleReIndexUrl = async (doc: KBDocument) => {
+    if (!doc.url || isProcessing) return;
+    
+    setRefreshingId(doc.id);
+    setIsProcessing(true);
+    setStatus(`${t.extracting} -> ${doc.url}`);
+
+    try {
+      const extractedText = await extractTextFromUrl(doc.url);
+      await onUpdateDoc(doc.id, {
+        content: extractedText,
+        uploadDate: new Date().toISOString()
+      });
+      setStatus(t.refreshSuccess);
+      setTimeout(() => setStatus(null), 3000);
+    } catch (error: any) {
+      console.error(error);
+      setStatus(`Error: Refresh failed for ${doc.name}`);
+    } finally {
+      setIsProcessing(false);
+      setRefreshingId(null);
     }
   };
 
@@ -316,11 +340,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
         {documents.map(doc => (
           <div key={doc.id} className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-[32px] p-8 shadow-sm hover:shadow-xl transition-all group relative flex flex-col min-h-[420px]">
              <div className="absolute top-6 right-6 flex gap-1">
+                 {doc.sourceType === 'web' && (
+                   <button 
+                     onClick={() => handleReIndexUrl(doc)} 
+                     disabled={isProcessing}
+                     title={t.reIndex}
+                     className={`text-slate-200 hover:text-sky-500 transition-colors p-2 ${refreshingId === doc.id ? 'animate-spin text-sky-500' : ''}`}
+                   >
+                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                   </button>
+                 )}
                  <button onClick={() => onRemoveDoc(doc.id)} className="text-slate-200 hover:text-red-500 transition-colors p-2"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
               </div>
               <div className="flex gap-2 mb-4">
                 <span className="px-2 py-1 bg-sky-50 text-sky-700 text-[9px] font-black uppercase rounded-lg border border-sky-100">By: {doc.reviewer}</span>
-                <span className="px-2 py-1 bg-slate-50 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-100">Pub: {new Date(doc.publishDate).toLocaleDateString()}</span>
+                <span className="px-2 py-1 bg-slate-50 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-100">Updated: {new Date(doc.uploadDate).toLocaleDateString()}</span>
               </div>
               <h4 className="text-slate-800 font-black mb-1 truncate text-lg">{doc.name}</h4>
               <p className="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em] mb-6">{doc.sourceType === 'web' ? t.webSource : t.fileSource} • {doc.type}</p>
@@ -333,7 +367,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
                   className="mb-4 inline-flex items-center gap-2 text-[10px] font-black text-sky-600 hover:text-sky-800 uppercase tracking-widest bg-sky-50 px-3 py-2 rounded-xl border border-sky-100 transition-colors w-fit"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  View Full File
+                  View Original
                 </a>
               )}
 

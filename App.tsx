@@ -5,6 +5,7 @@ import Navigation from './components/Navigation';
 import KnowledgeBase from './components/KnowledgeBase';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import UserManual from './components/UserManual';
 import Background from './components/Background';
 import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB, clearAllDocumentsFromDB } from './db';
 
@@ -131,6 +132,10 @@ const App: React.FC = () => {
           <div className="h-full overflow-y-auto">
             {view === ViewState.HOME && (
               <KnowledgeBase documents={documents} lang={lang} />
+            )}
+
+            {view === ViewState.USER_MANUAL && (
+              <UserManual lang={lang} />
             )}
 
             {view === ViewState.ADMIN_LOGIN && (

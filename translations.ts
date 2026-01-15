@@ -3,7 +3,7 @@ export type Language = 'en' | 'zh-TW' | 'zh-CN' | 'ja';
 
 export const translations = {
   en: {
-    title: 'Big Eagle Travel Knowledge Base',
+    title: 'Big Eagle Travel KB',
     subtitle: 'Where to next?',
     askAi: 'Ask AI',
     dashboard: 'Dashboard',
@@ -17,7 +17,7 @@ export const translations = {
     addUrl: 'Add Website Link',
     urlPlaceholder: 'Enter website URL...',
     processing: 'Processing...',
-    extracting: 'Deep extracting content (2 layers)...',
+    extracting: 'Deep extracting content...',
     indexing: 'Indexing content...',
     loginTitle: 'Admin Console',
     loginSubtitle: 'Manage travel knowledge base',
@@ -28,7 +28,7 @@ export const translations = {
     webSource: 'Web Link',
     fileSource: 'File',
     consulting: 'Consulting Knowledge Base...',
-    emptyKb: 'Knowledge base is empty. Ask an admin to add data.',
+    emptyKb: 'Knowledge base is empty.',
     edit: 'Edit',
     save: 'Save Changes',
     cancel: 'Cancel',
@@ -36,7 +36,14 @@ export const translations = {
     docName: 'Document Name',
     docContent: 'Content',
     corsError: 'Firebase CORS Blocked',
-    corsHelp: 'CORS settings are required for physical file sync. Please follow the instructions to allow your current domain in Firebase Storage.'
+    corsHelp: 'CORS settings are required for physical file sync.',
+    reIndex: 'Re-index URL',
+    refreshSuccess: 'Content updated!',
+    manual: 'User Manual',
+    menu: 'Menu',
+    manualTitle: 'System Operation Guide',
+    manualUserGuide: 'User Guide',
+    manualAdminGuide: 'Admin Maintenance'
   },
   'zh-TW': {
     title: '大鷹旅遊知識庫',
@@ -53,7 +60,7 @@ export const translations = {
     addUrl: '加入網頁連結',
     urlPlaceholder: '輸入網站 URL...',
     processing: '處理中...',
-    extracting: '正在深度提取網頁內容...',
+    extracting: '正在深度提取內容...',
     indexing: '正在建立索引...',
     loginTitle: '管理員控制台',
     loginSubtitle: '維護與管理大鷹旅遊知識庫',
@@ -72,7 +79,14 @@ export const translations = {
     docName: '文件名稱',
     docContent: '內容',
     corsError: 'Firebase CORS 存取被阻擋',
-    corsHelp: '雲端同步實體檔案需要設定 Firebase CORS。請前往 Google Cloud Console 授權目前的網域。'
+    corsHelp: '雲端同步實體檔案需要設定 Firebase CORS。',
+    reIndex: '重新整理內容',
+    refreshSuccess: '內容已更新為網站最新版本！',
+    manual: '使用手冊',
+    menu: '功能選單',
+    manualTitle: '系統操作使用手冊',
+    manualUserGuide: '使用者指南',
+    manualAdminGuide: '管理員維護'
   },
   'zh-CN': {
     title: '大鹰旅游知识库',
@@ -89,7 +103,7 @@ export const translations = {
     addUrl: '添加网页链接',
     urlPlaceholder: '输入网站 URL...',
     processing: '处理中...',
-    extracting: '正在深度提取网页内容...',
+    extracting: '正在深度提取内容...',
     indexing: '正在建立索引...',
     loginTitle: '管理员控制台',
     loginSubtitle: '维护与管理大鹰旅游知识库',
@@ -108,10 +122,17 @@ export const translations = {
     docName: '文档名称',
     docContent: '内容',
     corsError: 'Firebase CORS 存取被阻擋',
-    corsHelp: '云端同步实体文件需要设置 Firebase CORS。请前往 Google Cloud Console 授权目前的域名。'
+    corsHelp: '云端同步实体文件需要设置 Firebase CORS。',
+    reIndex: '重新抓取内容',
+    refreshSuccess: '内容已更新为网站最新版本！',
+    manual: '使用手册',
+    menu: '功能菜单',
+    manualTitle: '系统操作使用手册',
+    manualUserGuide: '用户指南',
+    manualAdminGuide: '管理员维护'
   },
   ja: {
-    title: 'ビッグイーグル・トラベル ナレッジベース',
+    title: 'ビッグイーグル・トラベル',
     subtitle: '次はどこへ行きますか？',
     askAi: 'AIに相談',
     dashboard: '管理画面',
@@ -130,13 +151,13 @@ export const translations = {
     loginTitle: '管理コンソール',
     loginSubtitle: 'ナレッジベースの維持と管理',
     userLabel: 'ユーザー名',
-    passLabel: 'パスワード',
+    passLabel: 'パワード',
     loginBtn: 'ダッシュボードにログイン',
     indexed: 'インデックス済み',
     webSource: 'ウェブリンク',
     fileSource: 'ファイル',
     consulting: 'ナレッジベースに相談中...',
-    emptyKb: 'ナレッジベースは空です。管理者にデータの追加を依頼してください。',
+    emptyKb: 'ナレッジベースは空です。',
     edit: '編集',
     save: '変更を保存',
     cancel: 'キャンセル',
@@ -144,6 +165,13 @@ export const translations = {
     docName: 'ドキュメント名',
     docContent: '内容',
     corsError: 'Firebase CORS エラー',
-    corsHelp: 'クラウド同期にはFirebaseのCORS設定が必要です。ドメインの許可設定を確認してください。'
+    corsHelp: 'クラウド同期にはFirebaseのCORS設定が必要です。',
+    reIndex: '再クロール',
+    refreshSuccess: 'コンテンツを最新の状態に更新しました！',
+    manual: 'マニュアル',
+    menu: 'メニュー',
+    manualTitle: 'システム操作マニュアル',
+    manualUserGuide: 'ユーザーガイド',
+    manualAdminGuide: '管理保守'
   }
 };
