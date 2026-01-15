@@ -2,7 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { KBDocument, Language, KBSettings } from "../types";
 import * as XLSX from "xlsx";
-import mammoth from "mammoth";
+import * as mammoth from "mammoth";
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -52,7 +52,7 @@ const parseWordToText = async (file: File): Promise<string> => {
 };
 
 export const extractTextFromFile = async (file: File): Promise<string> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const model = 'gemini-3-flash-preview';
   
   const fileName = file.name.toLowerCase();
@@ -71,20 +71,18 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
       extractedRawText = await file.text();
     }
 
-    // 如果是上述已經在本地解析好的文字格式
     if (extractedRawText) {
       const response = await ai.models.generateContent({
         model,
-        contents: {
+        contents: [{
           parts: [
             { text: `I have extracted the following raw content from a file named "${file.name}". Please reorganize, clean, and format this information into a structured summary for a Travel Knowledge Base. Ensure all pricing, dates, and itineraries are preserved.\n\nRaw Content:\n${extractedRawText}` }
           ]
-        }
+        }]
       });
       return response.text || extractedRawText;
     } 
 
-    // 對於 PDF 和 圖片 (Gemini 具備強大的原生 OCR 能力)
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -96,39 +94,33 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
 
     const response = await ai.models.generateContent({
       model,
-      contents: {
+      contents: [{
         parts: [
           { inlineData: { data: base64, mimeType: file.type || 'application/octet-stream' } },
           { text: "Please extract all readable text from this document/image. Maintain structure and specific travel details like prices and locations." }
         ]
-      }
+      }]
     });
 
     return response.text || "No text could be extracted.";
 
   } catch (error: any) {
     console.error("Error extracting text:", error);
-    
-    // 針對 .doc (Legacy) 或是其他不支援格式提供明確指引
     if (fileName.endsWith('.doc')) {
       throw new Error("系統不支援舊版 .doc 格式。請將檔案另存為 .docx 或 PDF 後再行上傳。");
-    }
-    
-    if (error?.message?.includes("Unsupported MIME type")) {
-       throw new Error(`AI 不支援直接讀取 "${file.type}" 格式。請嘗試轉換為 PDF 或純文字檔。`);
     }
     throw new Error(handleGeminiError(error, 'zh-TW'));
   }
 };
 
 export const extractTextFromUrl = async (url: string): Promise<string> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const model = 'gemini-3-pro-preview';
   
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: { parts: [{ text: `Perform a comprehensive travel information extraction for: ${url}. Cover itineraries, benefits, and pricing.` }] },
+      contents: [{ parts: [{ text: `Perform a comprehensive travel information extraction for: ${url}. Cover itineraries, benefits, and pricing.` }] }],
       config: {
         tools: [{ googleSearch: {} }]
       }
@@ -148,7 +140,7 @@ export const queryKnowledgeBase = async (
   settings: KBSettings
 ): Promise<{ answer: string; sources: string[] }> => {
   try {
-    const ai = getAiClient();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     const model = settings.model || 'gemini-3-flash-preview';
 
     if (documents.length === 0) {
@@ -163,23 +155,16 @@ export const queryKnowledgeBase = async (
       return `${header}\n${doc.content}`;
     }).join('\n\n---\n\n');
 
-    const systemInstruction = `
-      ${settings.systemInstruction}
-      Always respond in ${lang}.
-      Always list sources clearly at the end of your response.
-    `;
-
     const response = await ai.models.generateContent({
       model,
-      contents: { parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] },
+      contents: [{ parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] }],
       config: {
-        systemInstruction,
+        systemInstruction: `${settings.systemInstruction}\nAlways respond in ${lang}. Always list sources clearly at the end.`,
         temperature: 0.2,
       }
     });
 
-    const answer = response.text || "I processed your request but couldn't generate a text answer.";
-    
+    const answer = response.text || "No response.";
     const usedSources = documents
       .filter(doc => answer.includes(doc.name) || (doc.url && answer.includes(doc.url)))
       .map(doc => doc.sourceType === 'web' ? doc.url! : doc.name);
@@ -190,9 +175,6 @@ export const queryKnowledgeBase = async (
     };
   } catch (error: any) {
     console.error("Critical RAG Error:", error);
-    return {
-      answer: handleGeminiError(error, lang),
-      sources: []
-    };
+    return { answer: handleGeminiError(error, lang), sources: [] };
   }
 };

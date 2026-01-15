@@ -33,11 +33,12 @@ const FilePreviewModal: React.FC<{
     } else {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, isExcel]);
 
   const fetchExcel = async () => {
     try {
       const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not ok");
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer);
       
@@ -48,8 +49,11 @@ const FilePreviewModal: React.FC<{
       });
 
       setExcelData(data);
-      setActiveSheet(workbook.SheetNames[0]);
+      if (workbook.SheetNames.length > 0) {
+        setActiveSheet(workbook.SheetNames[0]);
+      }
     } catch (err) {
+      console.error("Excel Load Error:", err);
       setError("無法載入 Excel 檔案，可能是跨網域存取 (CORS) 限制。");
     } finally {
       setLoading(false);
@@ -99,7 +103,7 @@ const FilePreviewModal: React.FC<{
             <div className="h-full flex flex-col">
               {/* Sheet Tabs */}
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                {Object.keys(excelData).map(name => (
+                {Object.keys(excelData).map((name: string) => (
                   <button 
                     key={name}
                     onClick={() => setActiveSheet(name)}
@@ -114,16 +118,20 @@ const FilePreviewModal: React.FC<{
                 <table className="w-full text-left border-collapse min-w-max">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-slate-100">
-                      {excelData[activeSheet]?.[0]?.map((cell, i) => (
-                        <th key={i} className="px-4 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-100">{cell || `Col ${i+1}`}</th>
+                      {(excelData[activeSheet]?.[0] || []).map((cell: any, i: number) => (
+                        <th key={i} className="px-4 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-100">
+                          {cell?.toString() || `Col ${i+1}`}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {excelData[activeSheet]?.slice(1).map((row, i) => (
+                    {(excelData[activeSheet]?.slice(1) || []).map((row: any[], i: number) => (
                       <tr key={i} className="hover:bg-sky-50/50 transition-colors">
-                        {row.map((cell, j) => (
-                          <td key={j} className="px-4 py-3 text-sm text-slate-600 font-medium">{cell?.toString() || ''}</td>
+                        {row.map((cell: any, j: number) => (
+                          <td key={j} className="px-4 py-3 text-sm text-slate-600 font-medium whitespace-nowrap">
+                            {cell?.toString() || ''}
+                          </td>
                         ))}
                       </tr>
                     ))}
@@ -282,7 +290,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                         {t.sourcesFound}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {msg.sources.map(src => {
+                        {msg.sources.map((src: string) => {
                           const isUrl = src.startsWith('http');
                           const doc = documents.find(d => d.url === src || d.name === src);
                           const displayName = doc ? doc.name : (src.length > 35 ? src.substring(0, 35) + '...' : src);
