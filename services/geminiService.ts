@@ -1,6 +1,8 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { KBDocument, Language, KBSettings } from "../types";
+import * as XLSX from "https://esm.sh/xlsx";
+import mammoth from "https://esm.sh/mammoth";
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -23,33 +25,98 @@ const handleGeminiError = (error: any, lang: Language): string => {
   return `Technical difficulty: ${msg || "Unknown connection error"}`;
 };
 
+/**
+ * 處理 Excel/CSV 檔案轉文字 (支援 .xls, .xlsx, .csv)
+ */
+const parseExcelToText = async (file: File): Promise<string> => {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  let fullText = "";
+
+  workbook.SheetNames.forEach(sheetName => {
+    const worksheet = workbook.Sheets[sheetName];
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
+  });
+
+  return fullText;
+};
+
+/**
+ * 處理 Word 檔案轉文字 (支援 .docx)
+ */
+const parseWordToText = async (file: File): Promise<string> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+};
+
 export const extractTextFromFile = async (file: File): Promise<string> => {
   const ai = getAiClient();
   const model = 'gemini-3-flash-preview';
   
-  const base64 = await new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = (reader.result as string).split(',')[1];
-      resolve(base64String);
-    };
-    reader.readAsDataURL(file);
-  });
+  const fileName = file.name.toLowerCase();
+  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv');
+  const isWord = fileName.endsWith('.docx');
+  const isText = fileName.endsWith('.txt') || fileName.endsWith('.md');
 
   try {
+    let extractedRawText = "";
+
+    if (isExcel) {
+      extractedRawText = await parseExcelToText(file);
+    } else if (isWord) {
+      extractedRawText = await parseWordToText(file);
+    } else if (isText) {
+      extractedRawText = await file.text();
+    }
+
+    // 如果是上述已經在本地解析好的文字格式
+    if (extractedRawText) {
+      const response = await ai.models.generateContent({
+        model,
+        contents: {
+          parts: [
+            { text: `I have extracted the following raw content from a file named "${file.name}". Please reorganize, clean, and format this information into a structured summary for a Travel Knowledge Base. Ensure all pricing, dates, and itineraries are preserved.\n\nRaw Content:\n${extractedRawText}` }
+          ]
+        }
+      });
+      return response.text || extractedRawText;
+    } 
+
+    // 對於 PDF 和 圖片 (Gemini 具備強大的原生 OCR 能力)
+    const base64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve(base64String);
+      };
+      reader.readAsDataURL(file);
+    });
+
     const response = await ai.models.generateContent({
       model,
       contents: {
         parts: [
           { inlineData: { data: base64, mimeType: file.type || 'application/octet-stream' } },
-          { text: "Please extract all readable text from this document/image. Maintain structure if possible." }
+          { text: "Please extract all readable text from this document/image. Maintain structure and specific travel details like prices and locations." }
         ]
       }
     });
 
     return response.text || "No text could be extracted.";
+
   } catch (error: any) {
     console.error("Error extracting text:", error);
+    
+    // 針對 .doc (Legacy) 或是其他不支援格式提供明確指引
+    if (fileName.endsWith('.doc')) {
+      throw new Error("系統不支援舊版 .doc 格式。請將檔案另存為 .docx 或 PDF 後再行上傳。");
+    }
+    
+    if (error?.message?.includes("Unsupported MIME type")) {
+       throw new Error(`AI 不支援直接讀取 "${file.type}" 格式。請嘗試轉換為 PDF 或純文字檔。`);
+    }
     throw new Error(handleGeminiError(error, 'zh-TW'));
   }
 };

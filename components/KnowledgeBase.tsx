@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { KBDocument, ChatMessage, Language, KBSettings } from '../types';
 import { queryKnowledgeBase } from '../services/geminiService';
 import { translations } from '../translations';
+import * as XLSX from "https://esm.sh/xlsx";
 
 interface KnowledgeBaseProps {
   documents: KBDocument[];
@@ -10,11 +11,151 @@ interface KnowledgeBaseProps {
   settings: KBSettings;
 }
 
+// 檔案預覽組件
+const FilePreviewModal: React.FC<{ 
+  url: string; 
+  fileName: string; 
+  onClose: () => void;
+}> = ({ url, fileName, onClose }) => {
+  const [excelData, setExcelData] = useState<{ [key: string]: any[][] }>({});
+  const [activeSheet, setActiveSheet] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileExt = fileName.split('.').pop()?.toLowerCase();
+  const isExcel = ['xlsx', 'xls', 'csv'].includes(fileExt || '');
+  const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt || '');
+  const isPdf = fileExt === 'pdf';
+
+  useEffect(() => {
+    if (isExcel) {
+      fetchExcel();
+    } else {
+      setLoading(false);
+    }
+  }, [url]);
+
+  const fetchExcel = async () => {
+    try {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
+      
+      const data: { [key: string]: any[][] } = {};
+      workbook.SheetNames.forEach(name => {
+        const sheet = workbook.Sheets[name];
+        data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+      });
+
+      setExcelData(data);
+      setActiveSheet(workbook.SheetNames[0]);
+    } catch (err) {
+      setError("無法載入 Excel 檔案，可能是跨網域存取 (CORS) 限制。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-fade-in">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
+      <div className="relative bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-sky-800 rounded-xl flex items-center justify-center text-white text-xl">
+              {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : '📎'}
+            </div>
+            <div>
+              <h3 className="font-black text-slate-800 truncate max-w-xs md:max-w-md">{fileName}</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preview Mode</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <a href={url} download className="p-3 hover:bg-slate-200 rounded-full transition-colors text-slate-500" title="Download Original">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
+            <button onClick={onClose} className="p-3 hover:bg-red-50 hover:text-red-500 rounded-full transition-all text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-grow overflow-auto p-2 md:p-6 bg-slate-50">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center gap-4">
+              <div className="w-12 h-12 border-4 border-sky-800/20 border-t-sky-800 rounded-full animate-spin"></div>
+              <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Loading Content...</p>
+            </div>
+          ) : error ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-10">
+              <div className="text-6xl mb-4">⚠️</div>
+              <p className="text-slate-800 font-black mb-2">{error}</p>
+              <p className="text-slate-400 text-sm">請點擊右上方下載按鈕開啟原始檔案。</p>
+            </div>
+          ) : isExcel ? (
+            <div className="h-full flex flex-col">
+              {/* Sheet Tabs */}
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                {Object.keys(excelData).map(name => (
+                  <button 
+                    key={name}
+                    onClick={() => setActiveSheet(name)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSheet === name ? 'bg-sky-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+              {/* Table Render */}
+              <div className="flex-grow bg-white rounded-3xl border border-slate-200 overflow-auto shadow-inner">
+                <table className="w-full text-left border-collapse min-w-max">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-slate-100">
+                      {excelData[activeSheet]?.[0]?.map((cell, i) => (
+                        <th key={i} className="px-4 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-100">{cell || `Col ${i+1}`}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {excelData[activeSheet]?.slice(1).map((row, i) => (
+                      <tr key={i} className="hover:bg-sky-50/50 transition-colors">
+                        {row.map((cell, j) => (
+                          <td key={j} className="px-4 py-3 text-sm text-slate-600 font-medium">{cell?.toString() || ''}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : isImage ? (
+            <div className="h-full flex items-center justify-center">
+              <img src={url} alt={fileName} className="max-w-full max-h-full object-contain rounded-2xl shadow-xl" />
+            </div>
+          ) : isPdf ? (
+            <iframe src={`${url}#toolbar=0`} className="w-full h-full rounded-2xl border-none shadow-inner" title="PDF Preview"></iframe>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-10">
+              <div className="text-6xl mb-4">📄</div>
+              <p className="text-slate-800 font-black mb-2">此格式暫不支援線上預覽</p>
+              <p className="text-slate-400 text-sm">請下載後使用本機軟體開啟。</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings }) => {
   const t = translations[lang];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +201,21 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
     }
   };
 
+  const handleSourceClick = (e: React.MouseEvent, src: string) => {
+    const isUrl = src.startsWith('http');
+    if (!isUrl) return;
+
+    const fileName = src.split('/').pop()?.split('?')[0] || 'Document';
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    
+    // 如果是可預覽的檔案類型，則攔截點擊
+    const previewable = ['xlsx', 'xls', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp'].includes(ext || '');
+    if (previewable) {
+      e.preventDefault();
+      setPreviewFile({ url: src, name: fileName });
+    }
+  };
+
   const trendingTopics = [
     lang === 'en' ? "Big Eagle Member Perks" : "大鷹會員優惠",
     lang === 'en' ? "2024 Japan Travel Guide" : "2024 日本旅遊指南",
@@ -69,6 +225,15 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] max-w-5xl mx-auto px-4 overflow-hidden">
+      {/* 預覽 Modal */}
+      {previewFile && (
+        <FilePreviewModal 
+          url={previewFile.url} 
+          fileName={previewFile.name} 
+          onClose={() => setPreviewFile(null)} 
+        />
+      )}
+
       <div 
         ref={scrollContainerRef}
         className="flex-grow overflow-y-auto pt-6 md:pt-10 pb-4 space-y-6 scroll-smooth scrollbar-thin"
@@ -126,6 +291,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                             <a 
                               key={src} 
                               href={isUrl ? src : '#'} 
+                              onClick={(e) => handleSourceClick(e, src)}
                               target={isUrl ? "_blank" : "_self"}
                               rel="noopener noreferrer"
                               className="px-3 py-1.5 bg-slate-50/50 text-slate-500 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300 transition-all truncate max-w-[240px] flex items-center gap-1.5"
