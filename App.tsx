@@ -7,7 +7,18 @@ import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import UserManual from './components/UserManual';
 import Background from './components/Background';
-import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB, clearAllDocumentsFromDB, fetchSettingsFromDB, saveSettingsToDB } from './db';
+import { 
+  fetchDocumentsFromDB, 
+  saveDocumentToDB, 
+  deleteDocumentFromDB, 
+  updateDocumentInDB, 
+  initDB, 
+  clearAllDocumentsFromDB, 
+  fetchSettingsFromDB, 
+  saveSettingsToDB,
+  syncToCloud,
+  syncFromCloud
+} from './db';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.HOME);
@@ -16,6 +27,7 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<KBSettings>({ id: 'global', systemInstruction: '', model: 'gemini-3-flash-preview' });
   const [lang, setLang] = useState<Language>('zh-TW');
   const [isLoading, setIsLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   // Load language preference
   useEffect(() => {
@@ -25,20 +37,30 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Initialize SQLite and Fetch initial documents/settings
+  // Initialize SQLite and Auto-Pull from Cloud
   useEffect(() => {
     const loadData = async () => {
       try {
+        setSyncStatus("正在從雲端同步最新資料...");
         await initDB();
+        
+        // 自動從 Firebase 下載最新的資料庫檔案
+        const pulled = await syncFromCloud();
+        if (pulled) {
+          console.log("Cloud data pulled successfully on start.");
+        }
+
         const [docs, setts] = await Promise.all([
           fetchDocumentsFromDB(),
           fetchSettingsFromDB()
         ]);
         setDocuments(docs);
         setSettings(setts);
+        setSyncStatus(null);
       } catch (error) {
-        console.error("SQLite initialization error:", error);
-        setDocuments([]);
+        console.error("Initialization error:", error);
+        setSyncStatus("同步失敗，將使用本地快取");
+        setTimeout(() => setSyncStatus(null), 3000);
       } finally {
         setIsLoading(false);
       }
@@ -74,14 +96,29 @@ const App: React.FC = () => {
     setView(ViewState.HOME);
   };
 
+  // 自動同步封裝：本地操作後自動推送到雲端
+  const autoSyncToCloud = async (actionName: string) => {
+    try {
+      setSyncStatus(`正在將「${actionName}」同步至雲端...`);
+      await syncToCloud();
+      setSyncStatus(null);
+    } catch (error) {
+      console.error("Auto-sync failed:", error);
+      setSyncStatus("雲端同步失敗，資料目前僅存於本地");
+      setTimeout(() => setSyncStatus(null), 5000);
+    }
+  };
+
   const addDocument = async (doc: Omit<KBDocument, 'id'>) => {
     try {
       const id = await saveDocumentToDB(doc);
       const newDoc = { ...doc, id } as KBDocument;
       setDocuments(prev => [newDoc, ...prev]);
+      // 自動同步
+      await autoSyncToCloud("新增文件");
     } catch (error) {
       console.error("SQLite save error:", error);
-      alert("Error: Failed to save to SQLite database.");
+      alert("儲存失敗。");
     }
   };
 
@@ -89,9 +126,10 @@ const App: React.FC = () => {
     try {
       await updateDocumentInDB(id, updates);
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+      // 自動同步
+      await autoSyncToCloud("更新文件");
     } catch (error) {
       console.error("SQLite update error:", error);
-      alert("Failed to update document.");
     }
   };
 
@@ -99,9 +137,10 @@ const App: React.FC = () => {
     try {
       await deleteDocumentFromDB(id);
       setDocuments(prev => prev.filter(d => d.id !== id));
+      // 自動同步
+      await autoSyncToCloud("刪除文件");
     } catch (error) {
       console.error("SQLite delete error:", error);
-      setDocuments(prev => prev.filter(d => d.id !== id));
     }
   };
 
@@ -109,9 +148,10 @@ const App: React.FC = () => {
     try {
       await clearAllDocumentsFromDB();
       setDocuments([]);
+      // 自動同步
+      await autoSyncToCloud("清空資料庫");
     } catch (error) {
       console.error("Failed to clear documents:", error);
-      throw error;
     }
   };
 
@@ -119,9 +159,10 @@ const App: React.FC = () => {
     try {
       await saveSettingsToDB(newSettings);
       setSettings(newSettings);
+      // 自動同步
+      await autoSyncToCloud("更新系統設定");
     } catch (error) {
       console.error("Failed to update settings:", error);
-      throw error;
     }
   };
 
@@ -136,6 +177,16 @@ const App: React.FC = () => {
         lang={lang}
         setLang={handleSetLang}
       />
+
+      {/* 全域同步狀態提示 */}
+      {syncStatus && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-fade-in">
+          <div className="bg-slate-900/90 backdrop-blur-md text-white px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-3 border border-white/10">
+            <div className="w-2 h-2 bg-sky-400 rounded-full animate-ping"></div>
+            <span className="text-xs font-black uppercase tracking-widest">{syncStatus}</span>
+          </div>
+        </div>
+      )}
 
       <main className="flex-grow relative z-10 overflow-hidden">
         {isLoading ? (
@@ -178,7 +229,7 @@ const App: React.FC = () => {
                     <span className="text-white font-black tracking-widest uppercase">Big Eagle Travel Knowledge</span>
                   </div>
                   <p>© 2024 大鷹旅遊知識庫. All rights reserved.</p>
-                  <p className="mt-2 text-slate-600 italic">SQLite Edge Persistence Technology</p>
+                  <p className="mt-2 text-slate-600 italic">Global Sync Active via Firebase Storage</p>
                 </div>
               </footer>
             )}

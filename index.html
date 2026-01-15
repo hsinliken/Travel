@@ -1,9 +1,10 @@
 
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" class="notranslate" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
     <title>大鷹旅遊 | 旅遊知識庫</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>">
     
@@ -19,6 +20,12 @@
       }
       @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
       .animate-fade-in { animation: fade-in 0.5s ease-out; }
+      /* 強制隱藏沉浸式翻譯可能產生的額外元素 */
+      .immersive-translate-target-wrapper { display: none !important; }
+      /* 強化禁止翻譯樣式 */
+      .notranslate {
+        translate: no !important;
+      }
     </style>
 <script type="importmap">
 {
@@ -36,7 +43,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
+  <body class="bg-slate-50 text-slate-900 overflow-x-hidden notranslate" translate="no">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
