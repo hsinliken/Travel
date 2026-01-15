@@ -22,9 +22,12 @@ const FilePreviewModal: React.FC<{
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fileExt = fileName.split('.').pop()?.toLowerCase();
+  // 處理 Firebase URL 中的轉義字元，精準取得副檔名
+  const decodedFileName = decodeURIComponent(fileName.split('?')[0]);
+  const fileExt = decodedFileName.split('.').pop()?.toLowerCase();
+  
   const isExcel = ['xlsx', 'xls', 'csv'].includes(fileExt || '');
-  const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt || '');
+  const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt || '');
   const isPdf = fileExt === 'pdf';
 
   useEffect(() => {
@@ -54,72 +57,74 @@ const FilePreviewModal: React.FC<{
       }
     } catch (err) {
       console.error("Excel Load Error:", err);
-      setError("無法載入 Excel 檔案，可能是跨網域存取 (CORS) 限制。");
+      setError("無法解析內容。這可能是因為 CORS 設定尚未生效或檔案格式損壞。");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-fade-in">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
+    // 使用 translate="no" 防止翻譯套件干擾導致崩潰
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-fade-in" translate="no">
+      <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="relative bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-[32px] shadow-2xl flex flex-col overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-800 rounded-xl flex items-center justify-center text-white text-xl">
+            <div className="w-10 h-10 bg-sky-800 rounded-xl flex items-center justify-center text-white text-xl shadow-inner">
               {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : '📎'}
             </div>
-            <div>
-              <h3 className="font-black text-slate-800 truncate max-w-xs md:max-w-md">{fileName}</h3>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preview Mode</p>
+            <div className="overflow-hidden">
+              <h3 className="font-black text-slate-800 truncate max-w-[200px] md:max-w-md">{decodedFileName.split('/').pop()}</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Preview</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a href={url} download className="p-3 hover:bg-slate-200 rounded-full transition-colors text-slate-500" title="Download Original">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <a href={url} download target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-slate-200 rounded-full transition-colors text-slate-500" title="Open in new tab">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
-            <button onClick={onClose} className="p-3 hover:bg-red-50 hover:text-red-500 rounded-full transition-all text-slate-400">
+            <button onClick={onClose} className="p-2.5 hover:bg-red-50 hover:text-red-500 rounded-full transition-all text-slate-400">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-grow overflow-auto p-2 md:p-6 bg-slate-50">
+        <div className="flex-grow overflow-hidden bg-slate-100 relative">
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-sky-800/20 border-t-sky-800 rounded-full animate-spin"></div>
               <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Loading Content...</p>
             </div>
           ) : error ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-10">
+            <div className="h-full flex flex-col items-center justify-center text-center p-10 bg-white">
               <div className="text-6xl mb-4">⚠️</div>
               <p className="text-slate-800 font-black mb-2">{error}</p>
-              <p className="text-slate-400 text-sm">請點擊右上方下載按鈕開啟原始檔案。</p>
+              <p className="text-slate-400 text-sm mb-6">請點擊右上方按鈕開啟原始檔案。</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="px-6 py-2 bg-sky-800 text-white rounded-xl font-bold hover:bg-sky-900 transition-all">在新分頁開啟</a>
             </div>
           ) : isExcel ? (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col p-4 md:p-6">
               {/* Sheet Tabs */}
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                 {Object.keys(excelData).map((name: string) => (
                   <button 
                     key={name}
                     onClick={() => setActiveSheet(name)}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSheet === name ? 'bg-sky-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeSheet === name ? 'bg-sky-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}
                   >
                     {name}
                   </button>
                 ))}
               </div>
               {/* Table Render */}
-              <div className="flex-grow bg-white rounded-3xl border border-slate-200 overflow-auto shadow-inner">
+              <div className="flex-grow bg-white rounded-2xl border border-slate-200 overflow-auto shadow-inner">
                 <table className="w-full text-left border-collapse min-w-max">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-slate-100">
+                    <tr className="bg-slate-50">
                       {(excelData[activeSheet]?.[0] || []).map((cell: any, i: number) => (
-                        <th key={i} className="px-4 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-100">
+                        <th key={i} className="px-4 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-50">
                           {cell?.toString() || `Col ${i+1}`}
                         </th>
                       ))}
@@ -127,7 +132,7 @@ const FilePreviewModal: React.FC<{
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {(excelData[activeSheet]?.slice(1) || []).map((row: any[], i: number) => (
-                      <tr key={i} className="hover:bg-sky-50/50 transition-colors">
+                      <tr key={i} className="hover:bg-sky-50/30 transition-colors">
                         {row.map((cell: any, j: number) => (
                           <td key={j} className="px-4 py-3 text-sm text-slate-600 font-medium whitespace-nowrap">
                             {cell?.toString() || ''}
@@ -140,13 +145,21 @@ const FilePreviewModal: React.FC<{
               </div>
             </div>
           ) : isImage ? (
-            <div className="h-full flex items-center justify-center">
-              <img src={url} alt={fileName} className="max-w-full max-h-full object-contain rounded-2xl shadow-xl" />
+            <div className="h-full flex items-center justify-center p-4">
+              <img src={url} alt={fileName} className="max-w-full max-h-full object-contain rounded-lg shadow-xl bg-white" />
             </div>
           ) : isPdf ? (
-            <iframe src={`${url}#toolbar=0`} className="w-full h-full rounded-2xl border-none shadow-inner" title="PDF Preview"></iframe>
+            <div className="h-full w-full bg-slate-800">
+              <object
+                data={`${url}#toolbar=0&navpanes=0`}
+                type="application/pdf"
+                className="w-full h-full"
+              >
+                <iframe src={`${url}#toolbar=0`} className="w-full h-full border-none" title="PDF Preview"></iframe>
+              </object>
+            </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-10">
+            <div className="h-full flex flex-col items-center justify-center text-center p-10 bg-white">
               <div className="text-6xl mb-4">📄</div>
               <p className="text-slate-800 font-black mb-2">此格式暫不支援線上預覽</p>
               <p className="text-slate-400 text-sm">請下載後使用本機軟體開啟。</p>
@@ -213,14 +226,17 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
     const isUrl = src.startsWith('http');
     if (!isUrl) return;
 
-    const fileName = src.split('/').pop()?.split('?')[0] || 'Document';
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    // 從 URL 中安全地提取檔案名稱與副檔名
+    const urlParts = src.split('/');
+    const rawFileName = urlParts.pop() || 'Document';
+    const decodedName = decodeURIComponent(rawFileName.split('?')[0]);
+    const ext = decodedName.split('.').pop()?.toLowerCase();
     
-    // 如果是可預覽的檔案類型，則攔截點擊
-    const previewable = ['xlsx', 'xls', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp'].includes(ext || '');
+    // 如果是可預覽的檔案類型，則攔截點擊並打開 Modal
+    const previewable = ['xlsx', 'xls', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '');
     if (previewable) {
       e.preventDefault();
-      setPreviewFile({ url: src, name: fileName });
+      setPreviewFile({ url: src, name: decodedName });
     }
   };
 
@@ -281,6 +297,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                       ? 'bg-sky-800 text-white rounded-tr-none' 
                       : 'bg-white/95 backdrop-blur-md border border-slate-100 text-slate-800 rounded-tl-none'
                   }`}
+                  translate={msg.role === 'assistant' ? "no" : "yes"}
                 >
                   <div className="whitespace-pre-wrap leading-relaxed text-sm md:text-base font-medium">{msg.content}</div>
                   {msg.sources && msg.sources.length > 0 && (
@@ -293,7 +310,18 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                         {msg.sources.map((src: string) => {
                           const isUrl = src.startsWith('http');
                           const doc = documents.find(d => d.url === src || d.name === src);
-                          const displayName = doc ? doc.name : (src.length > 35 ? src.substring(0, 35) + '...' : src);
+                          
+                          // 處理顯示名稱
+                          let displayName = doc ? doc.name : src;
+                          if (isUrl) {
+                            try {
+                                const urlObj = new URL(src);
+                                const path = decodeURIComponent(urlObj.pathname);
+                                displayName = path.split('/').pop() || urlObj.hostname;
+                            } catch(e) {
+                                displayName = src.length > 30 ? src.substring(0, 30) + '...' : src;
+                            }
+                          }
                           
                           return (
                             <a 
