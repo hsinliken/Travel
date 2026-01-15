@@ -151,30 +151,38 @@ export const queryKnowledgeBase = async (
     const systemInstruction = `${settings.systemInstruction}
 1. Always respond in ${lang}.
 2. Use ONLY the provided context to answer. If the answer is not in the context, say you don't know based on current data.
-3. CRITICAL: When you use information from a document, you MUST cite it at the end of the sentence using its ID in parentheses, e.g., "(1)" or "(1, 3)".
-4. Do NOT include a "Sources" or "References" section at the end of your response. I will generate that part automatically.`;
+3. CRITICAL CITATION RULE: Whenever you use information from the context, you MUST append the source ID in parentheses immediately after the relevant sentence, e.g., "(1)" or "(1, 3)". 
+4. DO NOT generate a "Sources" or "References" section.
+5. Ensure every statement of fact is backed by a source ID.`;
 
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] }],
       config: {
         systemInstruction,
-        temperature: 0.1, // 降低溫度以提高引用準確性
+        temperature: 0, // 最低溫度確保回答穩定與引用精確
       }
     });
 
     const answer = response.text || "No response.";
     
-    // 從回答中提取被引用的 ID
-    const citedIds = [...answer.matchAll(/\((\d+)\)/g)].map(m => parseInt(m[1]));
-    const uniqueCitedIds = Array.from(new Set(citedIds)).sort((a, b) => a - b);
+    // 強化版 ID 提取：支援 (1), (1, 2), (1,2) 格式
+    const idSet = new Set<number>();
+    const citationRegex = /\(([\d\s,]+)\)/g;
+    let match;
+    while ((match = citationRegex.exec(answer)) !== null) {
+      const ids = match[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      ids.forEach(id => idSet.add(id));
+    }
+    
+    const sortedIds = Array.from(idSet).sort((a, b) => a - b);
     
     // 根據引用的 ID 建立來源列表，標記序號
-    const usedSources = uniqueCitedIds
+    const usedSources = sortedIds
       .filter(id => id > 0 && id <= documents.length)
       .map(id => {
         const doc = documents[id - 1];
-        const sourceLabel = doc.sourceType === 'web' ? doc.url! : doc.name;
+        const sourceLabel = doc.sourceType === 'web' ? (doc.url || doc.name) : doc.name;
         return `(${id}) ${sourceLabel}`;
       });
 

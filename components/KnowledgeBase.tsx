@@ -22,17 +22,13 @@ const FilePreviewModal: React.FC<{
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 強化版副檔名偵測：能處理複雜的 Firebase URL 與帶有參數的網址
+  // 強化版副檔名偵測
   const getFileExt = (nameOrUrl: string) => {
     try {
-      // 1. 先處理 URL 參數 (例如 ?alt=media)
       const baseUrl = nameOrUrl.split('?')[0];
-      // 2. 處理路徑
       const parts = baseUrl.split('/');
       const lastPart = parts[parts.length - 1] || '';
-      // 3. 處理 URL 編碼 (Firebase 檔名常包含 %2F 等)
       const decoded = decodeURIComponent(lastPart);
-      // 4. 取得真正的副檔名
       const ext = decoded.split('.').pop()?.toLowerCase();
       return ext || '';
     } catch (e) {
@@ -55,7 +51,6 @@ const FilePreviewModal: React.FC<{
 
   const fetchExcel = async () => {
     try {
-      // 嘗試抓取檔案，如果報 CORS 錯誤通常會在這裡拋出 TypeError
       const response = await fetch(url, { 
         method: 'GET',
         cache: 'default'
@@ -71,7 +66,6 @@ const FilePreviewModal: React.FC<{
       const data: { [key: string]: any[][] } = {};
       workbook.SheetNames.forEach((name: string) => {
         const sheet = workbook.Sheets[name];
-        // 限制讀取行數以提升效能，避免極大 Excel 卡死瀏覽器
         data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0 + 200 }) as any[][];
       });
 
@@ -84,9 +78,9 @@ const FilePreviewModal: React.FC<{
     } catch (err: any) {
       console.error("Excel Load Error:", err);
       if (err.name === "TypeError" || err.message.includes("fetch")) {
-        setError("由於 Firebase 安全性限制 (CORS)，無法直接在此預覽檔案內容。這通常是因為雲端設定未允許此網域讀取檔案原始位元。");
+        setError("由於 Firebase 安全性限制 (CORS)，無法直接在此預覽檔案內容。");
       } else {
-        setError("檔案格式解析失敗。請確認這是一個有效的 Excel 檔案，或直接下載查看。");
+        setError("檔案格式解析失敗。");
       }
     } finally {
       setLoading(false);
@@ -136,9 +130,7 @@ const FilePreviewModal: React.FC<{
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
               <p className="text-slate-800 font-bold mb-2">{error}</p>
-              <p className="text-slate-500 text-sm mb-6">請手動點擊下方按鈕下載或在新分頁查看。</p>
               <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 開啟原始檔案
               </a>
             </div>
@@ -179,10 +171,6 @@ const FilePreviewModal: React.FC<{
             <iframe src={`${url}#toolbar=0`} className="w-full h-full rounded-2xl shadow-inner bg-white border-none" title="PDF Preview" />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </div>
-              <p className="text-slate-800 font-bold mb-4">此檔案類型目前不支援直接預覽。</p>
               <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all">
                 點擊下載原始檔案
               </a>
@@ -290,23 +278,30 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {msg.sources.map((src, sIdx) => {
-                        // 解析格式 "(ID) SourceNameOrUrl"
+                        // 解析 "(ID) SourceName"
                         const idMatch = src.match(/^\((\d+)\)\s+(.*)$/);
-                        const displayLabel = src;
-                        const cleanSrc = idMatch ? idMatch[2] : src;
-                        const isUrl = cleanSrc.startsWith('http');
+                        const id = idMatch ? idMatch[1] : '';
+                        const cleanLabel = idMatch ? idMatch[2] : src;
+                        const isUrl = cleanLabel.startsWith('http');
                         
-                        const doc = documents.find(d => d.url === cleanSrc || d.name === cleanSrc);
+                        const doc = documents.find(d => d.url === cleanLabel || d.name === cleanLabel);
                         return (
                           <button
                             key={sIdx}
                             onClick={() => {
                               if (doc?.url) setPreviewFile({ url: doc.url, name: doc.name });
-                              else if (isUrl) window.open(cleanSrc, '_blank');
+                              else if (isUrl) window.open(cleanLabel, '_blank');
                             }}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${msg.role === 'user' ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-50 border-slate-200 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-800'}`}
+                            className={`flex items-center gap-2 pr-4 pl-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${msg.role === 'user' ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-50 border-slate-200 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-800'}`}
                           >
-                            {displayLabel}
+                            {id && (
+                              <span className={`w-6 h-6 flex items-center justify-center rounded-lg ${msg.role === 'user' ? 'bg-white/20 text-white' : 'bg-sky-800 text-white'}`}>
+                                {id}
+                              </span>
+                            )}
+                            <span className="truncate max-w-[120px] md:max-w-[200px]">
+                              {isUrl ? new URL(cleanLabel).hostname : cleanLabel}
+                            </span>
                           </button>
                         );
                       })}
