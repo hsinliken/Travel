@@ -2,19 +2,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { KBDocument, Language } from "../types";
 
-const getEnv = (key: string, fallback: string) => {
-  try {
-    return (window as any).process?.env?.[key] || fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 /**
- * Helper to get Gemini client. 
+ * Helper to get Gemini client using process.env.API_KEY exclusively.
  */
 const getAiClient = () => {
-  const apiKey = getEnv("API_KEY", "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4");
+  const apiKey = process.env.API_KEY!;
   return new GoogleGenAI({ apiKey });
 };
 
@@ -91,8 +83,8 @@ export const queryKnowledgeBase = async (
 
   const systemInstruction = `
     You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊).
-    Respond in ${lang}. Use the provided context to answer. 
-    Mention specific sources used.
+    Respond in ${lang}. Use the provided context to answer accurately. 
+    Mention specific sources used in your explanation.
   `;
 
   try {

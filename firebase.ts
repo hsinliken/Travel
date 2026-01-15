@@ -1,12 +1,10 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getBytes, FirebaseStorage } from "firebase/storage";
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
 
-let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 
 export const isCloudSyncEnabled = true;
@@ -22,7 +20,6 @@ try {
   };
   
   const app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
   storage = getStorage(app);
 } catch (e) {
   console.error("Firebase initialization failed:", e);

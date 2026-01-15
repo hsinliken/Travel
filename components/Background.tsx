@@ -6,7 +6,6 @@ const Background: React.FC = () => {
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Updated prompt to focus on Big Eagle branding: Eagle soaring over landscapes.
   const GEN_PROMPT = "A majestic eagle soaring gracefully over the lush mountains and scenic coastal roads of Taiwan during sunrise. Cinematic landscape photography, travel agency branding style, high resolution, vibrant and warm lighting.";
   const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=2000&auto=format&fit=crop';
   const CACHE_KEY = 'tp_bg_gen_eagle_v1';
@@ -19,7 +18,7 @@ const Background: React.FC = () => {
         return;
       }
 
-      const apiKey = process.env.API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
+      const apiKey = process.env.API_KEY!;
 
       setIsLoading(true);
       try {
