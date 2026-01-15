@@ -167,9 +167,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
 
   return (
     <div className="container mx-auto px-4 py-12 animate-fade-in">
+      {/* DB Management Hub */}
       <div className="mb-10 grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Cloud Sync Center */}
         <div className="xl:col-span-2 bg-gradient-to-br from-slate-900 to-sky-950 rounded-[40px] p-8 text-white shadow-2xl border border-sky-800/50 overflow-hidden relative group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+          
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 h-full">
             <div className="max-w-md">
               <div className="flex items-center gap-3 mb-2">
@@ -185,18 +189,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
                 </p>
               )}
             </div>
+
             <div className="flex flex-wrap items-center gap-4">
-              <button onClick={handlePullFromCloud} disabled={isProcessing} className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 flex items-center gap-2">
+              <button 
+                onClick={handlePullFromCloud}
+                disabled={isProcessing}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 flex items-center gap-2"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Pull
               </button>
-              <button onClick={handlePushToCloud} disabled={isProcessing} className="px-8 py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-sky-500/20 active:scale-95 disabled:opacity-30 flex items-center gap-2">
+              <button 
+                onClick={handlePushToCloud}
+                disabled={isProcessing}
+                className="px-8 py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-sky-500/20 active:scale-95 disabled:opacity-30 flex items-center gap-2"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Push
               </button>
             </div>
           </div>
         </div>
+
+        {/* Local File Management */}
         <div className="bg-white border border-slate-200 rounded-[40px] p-8 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -205,7 +220,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
               </div>
               <h3 className="font-black uppercase tracking-widest text-slate-800 text-sm">SQLite Local File</h3>
             </div>
-            <p className="text-slate-500 text-xs font-medium mb-6">Download or upload the physical <strong>.sqlite</strong> database file for manual portability.</p>
+            <p className="text-slate-500 text-xs font-medium mb-6">
+              Download or upload the physical <strong>.sqlite</strong> database file for manual portability.
+            </p>
           </div>
           <div className="flex gap-3">
              <button onClick={handleExportLocal} className="flex-grow py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">Export</button>
@@ -217,21 +234,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
         </div>
       </div>
 
+      {/* Error & CORS Help Area */}
       {status && (
         <div className={`mb-8 p-6 border-2 rounded-[32px] flex flex-col gap-4 animate-fade-in shadow-lg ${status.startsWith('Error') ? 'bg-red-50 text-red-700 border-red-100' : 'bg-sky-50 text-sky-800 border-sky-100'}`}>
            <div className="flex items-center gap-4">
              <div className={`w-3 h-3 rounded-full ${status.startsWith('Error') ? 'bg-red-500 animate-pulse' : 'bg-sky-500'}`}></div>
              <span className="font-black uppercase tracking-wider text-sm">{status}</span>
              {showCorsHelp && (
-               <button onClick={() => setShowCorsHelp(!showCorsHelp)} className="ml-auto bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
+               <button 
+                 onClick={() => setShowCorsHelp(!showCorsHelp)}
+                 className="ml-auto bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+               >
                  {showCorsHelp ? "Close Help" : "Fix 404 Bucket Not Found?"}
                </button>
              )}
            </div>
+           
            {showCorsHelp && (
              <div className="bg-white/90 p-6 rounded-2xl border border-red-200 text-xs text-slate-800 space-y-4 leading-relaxed shadow-inner">
                <div className="flex items-center gap-2 text-red-700 font-black uppercase tracking-widest mb-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                  {lang === 'zh-TW' ? "解決 404 Bucket Not Found" : "Fixing 404 Bucket Not Found"}
                </div>
                <p className="font-bold">如果指令出現 404，通常是因為 Bucket 名稱不對。</p>
@@ -239,24 +261,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
                  <li>前往 <a href="https://console.firebase.google.com/" target="_blank" className="text-sky-600 underline font-bold">Firebase Console</a> &gt; <strong>Storage</strong>。</li>
                  <li>查看畫面上方的 <code>gs://</code> 地址。</li>
                  <li><strong>複製下方指令</strong>並在 Cloud Shell 執行：
+                   
                    <div className="mt-4 space-y-3">
-                     <p className="text-[10px] font-black uppercase text-slate-400">方案 A (新版專案):</p>
+                     <p className="text-[10px] font-black uppercase text-slate-400">方案 A (新版專案最常見):</p>
                      <div className="bg-slate-900 text-sky-400 p-4 rounded-xl font-mono overflow-x-auto select-all">
                        {`echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "HEAD"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json && gsutil cors set cors.json gs://travel-ad466.firebasestorage.app`}
                      </div>
                    </div>
                  </li>
+                 <li className="text-red-600 font-bold">注意：執行前請確認您的 Firebase Storage 已經點擊「開始使用」並選擇了區域！</li>
                </ol>
              </div>
            )}
         </div>
       )}
 
+      {/* Main Admin UI */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12 bg-white/40 backdrop-blur-md p-8 rounded-[32px] border border-white/60 shadow-sm">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">{t.dashboard}</h1>
           <p className="text-slate-500 mt-1 font-medium">充實大鷹旅遊 AI 的知識庫。</p>
         </div>
+        
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto bg-white/60 p-4 rounded-2xl border border-white">
           <div className="flex flex-col gap-1">
              <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Reviewer Name</label>
