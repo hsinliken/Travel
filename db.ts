@@ -48,13 +48,41 @@ async function saveDBToIndexedDB(data: Uint8Array): Promise<void> {
 }
 
 /**
- * Sync logic: Pull from cloud if local is missing or explicitly requested
+ * Manual Export: Triggers a browser download of the .sqlite file
+ */
+export const exportDBFile = async () => {
+  if (!dbInstance) await initDB();
+  const binaryArray = dbInstance.export();
+  const blob = new Blob([binaryArray], { type: 'application/x-sqlite3' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bigeagle_kb_${new Date().toISOString().split('T')[0]}.sqlite`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * Manual Import: Loads a physical .sqlite file into the app
+ */
+export const importDBFile = async (file: File) => {
+  const buffer = await file.arrayBuffer();
+  const data = new Uint8Array(buffer);
+  await saveDBToIndexedDB(data);
+  dbInstance = null; // Reset instance to force reload
+  await initDB();
+  return true;
+};
+
+/**
+ * Sync logic: Pull from cloud
  */
 export const syncFromCloud = async () => {
   const remoteData = await downloadDatabaseFile();
   if (remoteData) {
     await saveDBToIndexedDB(remoteData);
-    // Force re-init next time
     dbInstance = null;
     await initDB();
     return true;
@@ -63,7 +91,7 @@ export const syncFromCloud = async () => {
 };
 
 /**
- * Sync logic: Push local DB to cloud
+ * Sync logic: Push to cloud
  */
 export const syncToCloud = async () => {
   if (!dbInstance) await initDB();
@@ -82,10 +110,8 @@ export const initDB = async () => {
     locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
   });
 
-  // Try Local Cache first for speed
   let savedData = await loadDBFromIndexedDB();
   
-  // If local cache empty, try one-time pull from Cloud
   if (!savedData) {
     savedData = await downloadDatabaseFile();
     if (savedData) await saveDBToIndexedDB(savedData);
@@ -93,7 +119,6 @@ export const initDB = async () => {
 
   dbInstance = savedData ? new SQL.Database(savedData) : new SQL.Database();
 
-  // Initialize table
   dbInstance.run(`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,

@@ -34,7 +34,9 @@ export const translations = {
     cancel: 'Cancel',
     updateDoc: 'Update Document',
     docName: 'Document Name',
-    docContent: 'Content'
+    docContent: 'Content',
+    corsError: 'Firebase CORS Blocked',
+    corsHelp: 'CORS settings are required for physical file sync. Please follow the instructions to allow your current domain in Firebase Storage.'
   },
   'zh-TW': {
     title: '大鷹旅遊知識庫',
@@ -51,24 +53,26 @@ export const translations = {
     addUrl: '加入網頁連結',
     urlPlaceholder: '輸入網站 URL...',
     processing: '處理中...',
-    extracting: '正在深度提取網頁內容 (往下搜尋2層)...',
+    extracting: '正在深度提取網頁內容...',
     indexing: '正在建立索引...',
     loginTitle: '管理員控制台',
-    loginSubtitle: '維護與管理旅遊知識庫',
+    loginSubtitle: '維護與管理大鷹旅遊知識庫',
     userLabel: '使用者名稱',
     passLabel: '密碼',
     loginBtn: '登入管理後台',
     indexed: '已建立索引',
     webSource: '網頁連結',
     fileSource: '檔案',
-    consulting: '正在諮詢知識庫...',
+    consulting: '正在諮詢大鷹旅遊知識庫...',
     emptyKb: '知識庫目前為空。請管理員添加資料。',
     edit: '編輯',
     save: '儲存修改',
     cancel: '取消',
     updateDoc: '修改文件',
     docName: '文件名稱',
-    docContent: '內容'
+    docContent: '內容',
+    corsError: 'Firebase CORS 存取被阻擋',
+    corsHelp: '雲端同步實體檔案需要設定 Firebase CORS。請前往 Google Cloud Console 授權目前的網域。'
   },
   'zh-CN': {
     title: '大鹰旅游知识库',
@@ -85,24 +89,26 @@ export const translations = {
     addUrl: '添加网页链接',
     urlPlaceholder: '输入网站 URL...',
     processing: '处理中...',
-    extracting: '正在深度提取网页内容 (向下搜索2层)...',
+    extracting: '正在深度提取网页内容...',
     indexing: '正在建立索引...',
     loginTitle: '管理员控制台',
-    loginSubtitle: '维护与管理旅游知识库',
+    loginSubtitle: '维护与管理大鹰旅游知识库',
     userLabel: '用户名',
     passLabel: '密码',
     loginBtn: '登录管理后台',
     indexed: '已建立索引',
     webSource: '网页链接',
     fileSource: '文件',
-    consulting: '正在咨询知识库...',
+    consulting: '正在咨询大鹰旅游知识库...',
     emptyKb: '知识库目前为空。请管理员添加资料。',
     edit: '编辑',
     save: '保存修改',
     cancel: '取消',
     updateDoc: '修改文档',
     docName: '文档名称',
-    docContent: '内容'
+    docContent: '内容',
+    corsError: 'Firebase CORS 存取被阻擋',
+    corsHelp: '云端同步实体文件需要设置 Firebase CORS。请前往 Google Cloud Console 授权目前的域名。'
   },
   ja: {
     title: 'ビッグイーグル・トラベル ナレッジベース',
@@ -119,7 +125,7 @@ export const translations = {
     addUrl: 'ウェブリンクを追加',
     urlPlaceholder: 'URLを入力...',
     processing: '処理中...',
-    extracting: 'コンテンツを詳細抽出中 (2層深くまで)...',
+    extracting: 'コンテンツを詳細抽出中...',
     indexing: 'インデックス作成中...',
     loginTitle: '管理コンソール',
     loginSubtitle: 'ナレッジベースの維持と管理',
@@ -136,6 +142,8 @@ export const translations = {
     cancel: 'キャンセル',
     updateDoc: 'ドキュメントを更新',
     docName: 'ドキュメント名',
-    docContent: '内容'
+    docContent: '内容',
+    corsError: 'Firebase CORS エラー',
+    corsHelp: 'クラウド同期にはFirebaseのCORS設定が必要です。ドメインの許可設定を確認してください。'
   }
 };

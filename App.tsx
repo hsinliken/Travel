@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, KBDocument, User, Language } from './types';
 import Navigation from './components/Navigation';
@@ -143,9 +142,9 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                   <div className="flex items-center justify-center gap-2 mb-4 opacity-70">
                     <div className="w-8 h-8 bg-sky-800 rounded-lg flex items-center justify-center text-white font-bold">🦅</div>
-                    <span className="text-white font-black tracking-widest uppercase">Big Eagle Railway Knowledge</span>
+                    <span className="text-white font-black tracking-widest uppercase">Big Eagle Travel Knowledge</span>
                   </div>
-                  <p>© 2024 大鷹旅遊鐵道知識庫. All rights reserved.</p>
+                  <p>© 2024 大鷹旅遊知識庫. All rights reserved.</p>
                   <p className="mt-2 text-slate-600 italic">SQLite Edge Persistence Technology</p>
                 </div>
               </footer>

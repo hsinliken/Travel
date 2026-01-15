@@ -4,13 +4,11 @@ import { KBDocument, Language } from "../types";
 
 /**
  * Helper to get Gemini client. 
- * Initializing inside functions is safer for Vercel environments.
+ * Using the provided key as default for local stability.
  */
 const getAiClient = () => {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY is not defined");
-  }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
+  return new GoogleGenAI({ apiKey });
 };
 
 export const extractTextFromFile = async (file: File): Promise<string> => {
