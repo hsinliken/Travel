@@ -22,16 +22,21 @@ const FilePreviewModal: React.FC<{
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 強化版副檔名偵測：處理複雜的 Firebase URL 與 URL 編碼
-  const getFileExt = (input: string) => {
+  // 強化版副檔名偵測：能處理複雜的 Firebase URL 與帶有參數的網址
+  const getFileExt = (nameOrUrl: string) => {
     try {
-      const baseUrl = input.split('?')[0];
-      const lastPart = baseUrl.split('/').pop() || '';
+      // 1. 先處理 URL 參數 (例如 ?alt=media)
+      const baseUrl = nameOrUrl.split('?')[0];
+      // 2. 處理路徑
+      const parts = baseUrl.split('/');
+      const lastPart = parts[parts.length - 1] || '';
+      // 3. 處理 URL 編碼 (Firebase 檔名常包含 %2F 等)
       const decoded = decodeURIComponent(lastPart);
+      // 4. 取得真正的副檔名
       const ext = decoded.split('.').pop()?.toLowerCase();
       return ext || '';
     } catch (e) {
-      return input.split('?')[0].split('.').pop()?.toLowerCase() || '';
+      return '';
     }
   };
 
@@ -50,16 +55,14 @@ const FilePreviewModal: React.FC<{
 
   const fetchExcel = async () => {
     try {
-      // 在無痕模式下，CORS 錯誤更為常見，此處使用明確錯誤處理
+      // 嘗試抓取檔案，如果報 CORS 錯誤通常會在這裡拋出 TypeError
       const response = await fetch(url, { 
         method: 'GET',
-        cache: 'no-cache',
-        mode: 'cors'
+        cache: 'default'
       });
       
       if (!response.ok) {
-        if (response.status === 403 || response.status === 0) throw new Error("CORS_BLOCK");
-        throw new Error("FETCH_FAILED");
+        throw new Error(`HTTP_${response.status}`);
       }
       
       const arrayBuffer = await response.arrayBuffer();
@@ -68,8 +71,11 @@ const FilePreviewModal: React.FC<{
       const data: { [key: string]: any[][] } = {};
       workbook.SheetNames.forEach((name: string) => {
         const sheet = workbook.Sheets[name];
-        data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        // 限制讀取行數以提升效能，避免極大 Excel 卡死瀏覽器
+        data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0 + 200 }) as any[][];
       });
+
+      if (Object.keys(data).length === 0) throw new Error("EMPTY_SHEET");
 
       setExcelData(data);
       if (workbook.SheetNames.length > 0) {
@@ -77,11 +83,10 @@ const FilePreviewModal: React.FC<{
       }
     } catch (err: any) {
       console.error("Excel Load Error:", err);
-      // 無痕模式下，TypeError 通常表示請求被瀏覽器安全策略攔截
-      if (err.message === "CORS_BLOCK" || err.name === "TypeError") {
-        setError("偵測到安全性攔截或跨域限制（通常發生於無痕模式）。請直接下載檔案查看。");
+      if (err.name === "TypeError" || err.message.includes("fetch")) {
+        setError("由於 Firebase 安全性限制 (CORS)，無法直接在此預覽檔案內容。這通常是因為雲端設定未允許此網域讀取檔案原始位元。");
       } else {
-        setError("檔案預覽目前不可用。這可能是檔案損壞或連線問題。");
+        setError("檔案格式解析失敗。請確認這是一個有效的 Excel 檔案，或直接下載查看。");
       }
     } finally {
       setLoading(false);
@@ -105,12 +110,12 @@ const FilePreviewModal: React.FC<{
               <h3 className="font-black text-slate-800 truncate max-w-[200px] md:max-w-md">
                 {displayFileName}
               </h3>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Preview</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure AI Knowledge Preview</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <a href={url} download target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
             <button onClick={onClose} className="p-2.5 hover:bg-red-50 hover:text-red-500 rounded-full transition-all text-slate-400">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -123,16 +128,18 @@ const FilePreviewModal: React.FC<{
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-800"></div>
-              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Preview...</p>
+              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">AI 正在讀取檔案內容...</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
-              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
-              <p className="text-slate-800 font-bold mb-4">{error}</p>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all">
-                直接下載檔案
+              <p className="text-slate-800 font-bold mb-2">{error}</p>
+              <p className="text-slate-500 text-sm mb-6">請手動點擊下方按鈕下載或在新分頁查看。</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                開啟原始檔案
               </a>
             </div>
           ) : isExcel ? (

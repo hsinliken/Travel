@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getStorage, ref, uploadBytes, getDownloadURL, getBytes, FirebaseStorage } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, getBytes, FirebaseStorage, settableMetadata } from "firebase/storage";
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "AIzaSyAmgZJ9XWOm5PyXU8axVj1_P9aZFJmoOa4";
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "travel-ad466";
@@ -36,7 +36,17 @@ export const uploadRawFile = async (file: File): Promise<string> => {
     // 使用時間戳避免檔名衝突
     const filePath = `raw_documents/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, filePath);
-    const snapshot = await uploadBytes(storageRef, file);
+    
+    // 關鍵修復：手動指定 Content-Type
+    const metadata = {
+      contentType: file.type || 'application/octet-stream',
+      customMetadata: {
+        'originalName': file.name,
+        'uploadedAt': new Date().toISOString()
+      }
+    };
+    
+    const snapshot = await uploadBytes(storageRef, file, metadata);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
   } catch (error: any) {
@@ -49,7 +59,7 @@ export const uploadDatabaseFile = async (data: Uint8Array): Promise<void> => {
   if (!storage) throw new Error("Firebase Storage not initialized.");
   try {
     const storageRef = ref(storage, 'database/knowledge_base.sqlite');
-    await uploadBytes(storageRef, data);
+    await uploadBytes(storageRef, data, { contentType: 'application/x-sqlite3' });
   } catch (error: any) {
     console.error("Firebase Upload Error Details:", error);
     if (error?.code === 'storage/unauthorized') {
