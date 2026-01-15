@@ -4,14 +4,6 @@ import { KBDocument, Language, KBSettings } from "../types";
 import * as XLSX from "xlsx";
 import * as mammoth from "mammoth";
 
-const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "null" || apiKey === "undefined") {
-    throw new Error("Missing API_KEY. Please set it in Vercel Environment Variables.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 const handleGeminiError = (error: any, lang: Language): string => {
   const msg = error?.message || "";
   if (msg.includes("leaked")) {
