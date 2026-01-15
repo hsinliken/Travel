@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KBDocument, Language } from '../types';
 import { extractTextFromFile, extractTextFromUrl } from '../services/geminiService';
 import { translations } from '../translations';
+import { syncToCloud, syncFromCloud } from '../db';
 
 interface AdminDashboardProps {
   documents: KBDocument[];
@@ -20,6 +21,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const [reviewerInput, setReviewerInput] = useState('');
   const [publishDateInput, setPublishDateInput] = useState(new Date().toISOString().split('T')[0]);
   const [editingDoc, setEditingDoc] = useState<KBDocument | null>(null);
+  const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('tp_last_sync'));
+
+  const handlePushToCloud = async () => {
+    setIsProcessing(true);
+    setStatus("Pushing SQLite physical file to Cloud Storage...");
+    try {
+      await syncToCloud();
+      setLastSync(new Date().toISOString());
+      setStatus("Success: Knowledge base published globally!");
+      setTimeout(() => setStatus(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setStatus("Error: Failed to push to cloud.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    setIsProcessing(true);
+    setStatus("Downloading latest database from Cloud...");
+    try {
+      const success = await syncFromCloud();
+      if (success) {
+        window.location.reload(); // Reload to refresh the DB instance and messages
+      } else {
+        setStatus("Cloud database is empty or unreachable.");
+        setTimeout(() => setStatus(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+      setStatus("Error: Pull failed.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,6 +142,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
 
   return (
     <div className="container mx-auto px-4 py-12 animate-fade-in">
+      {/* Sync Control Center */}
+      <div className="mb-10 bg-gradient-to-br from-slate-900 to-sky-950 rounded-[40px] p-8 text-white shadow-2xl border border-sky-800/50 overflow-hidden relative group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="flex h-3 w-3 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></span>
+              <h2 className="text-xl font-black uppercase tracking-widest text-sky-400">Cloud Sync Center</h2>
+            </div>
+            <p className="text-slate-300 text-sm font-medium">
+              Knowledge base is stored as a <strong>Physical SQLite File</strong> on Firebase Storage.
+            </p>
+            {lastSync && (
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mt-2">
+                Last Global Publish: {new Date(lastSync).toLocaleString()}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <button 
+              onClick={handlePullFromCloud}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Pull from Cloud
+            </button>
+            <button 
+              onClick={handlePushToCloud}
+              disabled={isProcessing}
+              className="px-8 py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-sky-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Push to Cloud
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Edit Modal */}
       {editingDoc && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">

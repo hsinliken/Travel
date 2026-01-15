@@ -1,5 +1,6 @@
 
 import { KBDocument } from "./types";
+import { uploadDatabaseFile, downloadDatabaseFile } from "./firebase";
 
 declare var initSqlJs: any;
 
@@ -8,7 +9,7 @@ const DB_NAME = 'BigEagleSQLiteDB';
 const STORE_NAME = 'database';
 
 /**
- * Loads the database binary from IndexedDB
+ * Loads the database binary from IndexedDB (Local Cache)
  */
 async function loadDBFromIndexedDB(): Promise<Uint8Array | null> {
   return new Promise((resolve) => {
@@ -29,7 +30,7 @@ async function loadDBFromIndexedDB(): Promise<Uint8Array | null> {
 }
 
 /**
- * Saves the database binary to IndexedDB
+ * Saves the database binary to IndexedDB (Local Cache)
  */
 async function saveDBToIndexedDB(data: Uint8Array): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -47,6 +48,31 @@ async function saveDBToIndexedDB(data: Uint8Array): Promise<void> {
 }
 
 /**
+ * Sync logic: Pull from cloud if local is missing or explicitly requested
+ */
+export const syncFromCloud = async () => {
+  const remoteData = await downloadDatabaseFile();
+  if (remoteData) {
+    await saveDBToIndexedDB(remoteData);
+    // Force re-init next time
+    dbInstance = null;
+    await initDB();
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Sync logic: Push local DB to cloud
+ */
+export const syncToCloud = async () => {
+  if (!dbInstance) await initDB();
+  const binaryArray = dbInstance.export();
+  await uploadDatabaseFile(binaryArray);
+  localStorage.setItem('tp_last_sync', new Date().toISOString());
+};
+
+/**
  * Initializes the SQLite database
  */
 export const initDB = async () => {
@@ -56,7 +82,15 @@ export const initDB = async () => {
     locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
   });
 
-  const savedData = await loadDBFromIndexedDB();
+  // Try Local Cache first for speed
+  let savedData = await loadDBFromIndexedDB();
+  
+  // If local cache empty, try one-time pull from Cloud
+  if (!savedData) {
+    savedData = await downloadDatabaseFile();
+    if (savedData) await saveDBToIndexedDB(savedData);
+  }
+
   dbInstance = savedData ? new SQL.Database(savedData) : new SQL.Database();
 
   // Initialize table
@@ -75,13 +109,13 @@ export const initDB = async () => {
   `);
 
   if (!savedData) {
-    await persistDB();
+    await persistLocal();
   }
 
   return dbInstance;
 };
 
-const persistDB = async () => {
+const persistLocal = async () => {
   if (!dbInstance) return;
   const binaryArray = dbInstance.export();
   await saveDBToIndexedDB(binaryArray);
@@ -107,13 +141,12 @@ export const saveDocumentToDB = async (kbDoc: Omit<KBDocument, 'id'>): Promise<s
     kbDoc.url || ''
   ]);
 
-  await persistDB();
+  await persistLocal();
   return id;
 };
 
 export const updateDocumentInDB = async (id: string, updates: Partial<KBDocument>): Promise<void> => {
   const db = await initDB();
-  
   const fields = Object.keys(updates);
   if (fields.length === 0) return;
 
@@ -122,7 +155,7 @@ export const updateDocumentInDB = async (id: string, updates: Partial<KBDocument
   values.push(id);
 
   db.run(`UPDATE documents SET ${setClause} WHERE id = ?`, values);
-  await persistDB();
+  await persistLocal();
 };
 
 export const fetchDocumentsFromDB = async (): Promise<KBDocument[]> => {
@@ -144,5 +177,5 @@ export const fetchDocumentsFromDB = async (): Promise<KBDocument[]> => {
 export const deleteDocumentFromDB = async (id: string): Promise<void> => {
   const db = await initDB();
   db.run("DELETE FROM documents WHERE id = ?", [id]);
-  await persistDB();
+  await persistLocal();
 };
