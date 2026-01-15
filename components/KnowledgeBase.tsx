@@ -1,15 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { KBDocument, ChatMessage, Language } from '../types';
+import { KBDocument, ChatMessage, Language, KBSettings } from '../types';
 import { queryKnowledgeBase } from '../services/geminiService';
 import { translations } from '../translations';
 
 interface KnowledgeBaseProps {
   documents: KBDocument[];
   lang: Language;
+  settings: KBSettings;
 }
 
-const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
+const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings }) => {
   const t = translations[lang];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -40,7 +41,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
     setIsLoading(true);
 
     try {
-      const result = await queryKnowledgeBase(input, documents, lang);
+      const result = await queryKnowledgeBase(input, documents, lang, settings);
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: result.answer,
@@ -68,7 +69,6 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] max-w-5xl mx-auto px-4 overflow-hidden">
-      {/* Messages / Welcome Area */}
       <div 
         ref={scrollContainerRef}
         className="flex-grow overflow-y-auto pt-6 md:pt-10 pb-4 space-y-6 scroll-smooth scrollbar-thin"
@@ -119,7 +119,6 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
                       <div className="flex flex-wrap gap-2">
                         {msg.sources.map(src => {
                           const isUrl = src.startsWith('http');
-                          // 尋找對應的 doc 名稱來美化顯示
                           const doc = documents.find(d => d.url === src || d.name === src);
                           const displayName = doc ? doc.name : (src.length > 35 ? src.substring(0, 35) + '...' : src);
                           
@@ -164,7 +163,6 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
         )}
       </div>
 
-      {/* Input Area - Anchored at the bottom of the visible screen */}
       <div className="py-6 pt-2 bg-gradient-to-t from-slate-50/10 via-transparent to-transparent">
         <form 
           onSubmit={handleSubmit}
@@ -198,7 +196,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang }) => {
                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Edge-RAG Ready</span>
              </div>
              <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-             <span className="text-[10px] text-slate-400 font-bold italic">{documents.length} sources indexed</span>
+             <span className="text-[10px] text-slate-400 font-bold italic">{documents.length} sources indexed ({settings.model})</span>
           </div>
         )}
       </div>

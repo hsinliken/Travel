@@ -13,6 +13,12 @@ export interface KBDocument {
   url?: string;
 }
 
+export interface KBSettings {
+  id: 'global';
+  systemInstruction: string;
+  model: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;

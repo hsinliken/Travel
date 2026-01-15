@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { KBDocument, Language } from '../types';
+import { KBDocument, Language, KBSettings } from '../types';
 import { extractTextFromFile, extractTextFromUrl } from '../services/geminiService';
 import { translations } from '../translations';
 import { syncToCloud, syncFromCloud, exportDBFile, importDBFile } from '../db';
@@ -13,9 +13,13 @@ interface AdminDashboardProps {
   onUpdateDoc: (id: string, updates: Partial<KBDocument>) => Promise<void>;
   onClearAll: () => Promise<void>;
   lang: Language;
+  settings: KBSettings;
+  onUpdateSettings: (settings: KBSettings) => Promise<void>;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, onRemoveDoc, onUpdateDoc, onClearAll, lang }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  documents, onAddDoc, onRemoveDoc, onUpdateDoc, onClearAll, lang, settings, onUpdateSettings 
+}) => {
   const t = translations[lang];
   const [isProcessing, setIsProcessing] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -24,6 +28,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const [reviewerInput, setReviewerInput] = useState('');
   const [publishDateInput, setPublishDateInput] = useState(new Date().toISOString().split('T')[0]);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('tp_last_sync'));
+
+  // Local state for settings form
+  const [formPrompt, setFormPrompt] = useState(settings.systemInstruction);
+  const [formModel, setFormModel] = useState(settings.model);
 
   const checkIsCorsError = (error: any) => {
     const msg = error?.message || "";
@@ -118,6 +126,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       } finally {
         setIsProcessing(false);
       }
+    }
+  };
+
+  const handleUpdateAISettings = async () => {
+    setIsProcessing(true);
+    setStatus("Updating AI Brain Settings...");
+    try {
+      await onUpdateSettings({
+        id: 'global',
+        systemInstruction: formPrompt,
+        model: formModel
+      });
+      setStatus("Success: AI Brain updated.");
+      setTimeout(() => setStatus(null), 3000);
+    } catch (e: any) {
+      setStatus(`Error: Failed to update AI settings.`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -289,6 +315,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
                <input type="file" className="hidden" accept=".sqlite,.db" onChange={handleImportLocal} />
                <div className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-[10px] text-center font-black uppercase tracking-widest transition-all active:scale-95">Import</div>
              </label>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Configuration Section */}
+      <div className="mb-10 bg-white border border-slate-200 rounded-[40px] p-8 shadow-xl">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center text-sky-800">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h2 className="text-xl font-black uppercase tracking-widest text-slate-800">AI Brain Configuration</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-black uppercase text-slate-400 tracking-wider">System Prompt (AI Identity)</label>
+              <textarea 
+                value={formPrompt}
+                onChange={(e) => setFormPrompt(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-medium h-48 focus:ring-4 focus:ring-sky-800/10 focus:border-sky-800 transition-all"
+                placeholder="Enter the system instruction for the AI..."
+              />
+              <p className="text-[10px] text-slate-400 font-bold italic mt-1">This defines how the AI behaves and what knowledge it prioritizes.</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col justify-between">
+            <div className="flex flex-col gap-1 mb-6">
+              <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Gemini Model Choice</label>
+              <select 
+                value={formModel}
+                onChange={(e) => setFormModel(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-4 focus:ring-sky-800/10 focus:border-sky-800 transition-all cursor-pointer appearance-none"
+              >
+                <option value="gemini-3-flash-preview">Gemini 3 Flash (Fast & Cost-Efficient)</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro (Advanced Reasoning)</option>
+                <option value="gemini-2.5-flash-lite-latest">Gemini 2.5 Flash Lite (Ultra Low Latency)</option>
+              </select>
+            </div>
+            
+            <button 
+              onClick={handleUpdateAISettings}
+              disabled={isProcessing}
+              className="w-full py-5 bg-sky-800 hover:bg-sky-900 text-white rounded-2xl font-black uppercase text-sm tracking-widest transition-all shadow-xl shadow-sky-900/10 active:scale-95 disabled:opacity-50"
+            >
+              Save AI Settings
+            </button>
           </div>
         </div>
       </div>

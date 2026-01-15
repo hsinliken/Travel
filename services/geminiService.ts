@@ -1,10 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { KBDocument, Language } from "../types";
+import { KBDocument, Language, KBSettings } from "../types";
 
-/**
- * Helper to get Gemini client using process.env.API_KEY exclusively.
- */
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey === "null" || apiKey === "undefined") {
@@ -80,11 +77,12 @@ export const extractTextFromUrl = async (url: string): Promise<string> => {
 export const queryKnowledgeBase = async (
   queryText: string, 
   documents: KBDocument[],
-  lang: Language
+  lang: Language,
+  settings: KBSettings
 ): Promise<{ answer: string; sources: string[] }> => {
   try {
     const ai = getAiClient();
-    const model = 'gemini-3-flash-preview';
+    const model = settings.model || 'gemini-3-flash-preview';
 
     if (documents.length === 0) {
       return {
@@ -99,9 +97,8 @@ export const queryKnowledgeBase = async (
     }).join('\n\n---\n\n');
 
     const systemInstruction = `
-      You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊).
-      Respond in ${lang}. Use the provided context to answer accurately. 
-      If the information is not in the context, say you don't know based on current data.
+      ${settings.systemInstruction}
+      Always respond in ${lang}.
       Always list sources clearly at the end of your response.
     `;
 

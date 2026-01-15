@@ -1,18 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewState, KBDocument, User, Language } from './types';
+import { ViewState, KBDocument, User, Language, KBSettings } from './types';
 import Navigation from './components/Navigation';
 import KnowledgeBase from './components/KnowledgeBase';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import UserManual from './components/UserManual';
 import Background from './components/Background';
-import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB, clearAllDocumentsFromDB } from './db';
+import { fetchDocumentsFromDB, saveDocumentToDB, deleteDocumentFromDB, updateDocumentInDB, initDB, clearAllDocumentsFromDB, fetchSettingsFromDB, saveSettingsToDB } from './db';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.HOME);
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<KBDocument[]>([]);
+  const [settings, setSettings] = useState<KBSettings>({ id: 'global', systemInstruction: '', model: 'gemini-3-flash-preview' });
   const [lang, setLang] = useState<Language>('zh-TW');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,15 +25,19 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Initialize SQLite and Fetch initial documents
+  // Initialize SQLite and Fetch initial documents/settings
   useEffect(() => {
     const loadData = async () => {
       try {
         await initDB();
-        const docs = await fetchDocumentsFromDB();
+        const [docs, setts] = await Promise.all([
+          fetchDocumentsFromDB(),
+          fetchSettingsFromDB()
+        ]);
         setDocuments(docs);
+        setSettings(setts);
       } catch (error) {
-        console.error("SQLite fetch error:", error);
+        console.error("SQLite initialization error:", error);
         setDocuments([]);
       } finally {
         setIsLoading(false);
@@ -103,9 +108,19 @@ const App: React.FC = () => {
   const handleClearDocuments = async () => {
     try {
       await clearAllDocumentsFromDB();
-      setDocuments([]); // 即時清空 UI 狀態
+      setDocuments([]);
     } catch (error) {
       console.error("Failed to clear documents:", error);
+      throw error;
+    }
+  };
+
+  const updateSettings = async (newSettings: KBSettings) => {
+    try {
+      await saveSettingsToDB(newSettings);
+      setSettings(newSettings);
+    } catch (error) {
+      console.error("Failed to update settings:", error);
       throw error;
     }
   };
@@ -131,7 +146,7 @@ const App: React.FC = () => {
         ) : (
           <div className="h-full overflow-y-auto">
             {view === ViewState.HOME && (
-              <KnowledgeBase documents={documents} lang={lang} />
+              <KnowledgeBase documents={documents} lang={lang} settings={settings} />
             )}
 
             {view === ViewState.USER_MANUAL && (
@@ -150,6 +165,8 @@ const App: React.FC = () => {
                 onUpdateDoc={updateDocument}
                 onClearAll={handleClearDocuments}
                 lang={lang}
+                settings={settings}
+                onUpdateSettings={updateSettings}
               />
             )}
             

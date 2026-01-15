@@ -1,5 +1,5 @@
 
-import { KBDocument } from "./types";
+import { KBDocument, KBSettings } from "./types";
 import { uploadDatabaseFile, downloadDatabaseFile } from "./firebase";
 
 declare var initSqlJs: any;
@@ -8,9 +8,6 @@ let dbInstance: any = null;
 const DB_NAME = 'BigEagleSQLiteDB';
 const STORE_NAME = 'database';
 
-/**
- * Loads the database binary from IndexedDB (Local Cache)
- */
 async function loadDBFromIndexedDB(): Promise<Uint8Array | null> {
   return new Promise((resolve) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -29,9 +26,6 @@ async function loadDBFromIndexedDB(): Promise<Uint8Array | null> {
   });
 }
 
-/**
- * Saves the database binary to IndexedDB (Local Cache)
- */
 async function saveDBToIndexedDB(data: Uint8Array): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -47,9 +41,6 @@ async function saveDBToIndexedDB(data: Uint8Array): Promise<void> {
   });
 }
 
-/**
- * Manual Export: Triggers a browser download of the .sqlite file
- */
 export const exportDBFile = async () => {
   if (!dbInstance) await initDB();
   const binaryArray = dbInstance.export();
@@ -64,21 +55,15 @@ export const exportDBFile = async () => {
   URL.revokeObjectURL(url);
 };
 
-/**
- * Manual Import: Loads a physical .sqlite file into the app
- */
 export const importDBFile = async (file: File) => {
   const buffer = await file.arrayBuffer();
   const data = new Uint8Array(buffer);
   await saveDBToIndexedDB(data);
-  dbInstance = null; // Reset instance to force reload
+  dbInstance = null;
   await initDB();
   return true;
 };
 
-/**
- * Sync logic: Pull from cloud
- */
 export const syncFromCloud = async () => {
   const remoteData = await downloadDatabaseFile();
   if (remoteData) {
@@ -90,9 +75,6 @@ export const syncFromCloud = async () => {
   return false;
 };
 
-/**
- * Sync logic: Push to cloud
- */
 export const syncToCloud = async () => {
   if (!dbInstance) await initDB();
   const binaryArray = dbInstance.export();
@@ -100,9 +82,6 @@ export const syncToCloud = async () => {
   localStorage.setItem('tp_last_sync', new Date().toISOString());
 };
 
-/**
- * Initializes the SQLite database
- */
 export const initDB = async () => {
   if (dbInstance) return dbInstance;
 
@@ -133,6 +112,14 @@ export const initDB = async () => {
     )
   `);
 
+  dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id TEXT PRIMARY KEY,
+      systemInstruction TEXT,
+      model TEXT
+    )
+  `);
+
   if (!savedData) {
     await persistLocal();
   }
@@ -144,6 +131,35 @@ const persistLocal = async () => {
   if (!dbInstance) return;
   const binaryArray = dbInstance.export();
   await saveDBToIndexedDB(binaryArray);
+};
+
+export const fetchSettingsFromDB = async (): Promise<KBSettings> => {
+  const db = await initDB();
+  const res = db.exec("SELECT * FROM settings WHERE id = 'global'");
+  
+  const defaultSettings: KBSettings = {
+    id: 'global',
+    systemInstruction: `You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊). Use the provided context to answer accurately. If the information is not in the context, say you don't know based on current data.`,
+    model: 'gemini-3-flash-preview'
+  };
+
+  if (res.length === 0) return defaultSettings;
+  
+  const values = res[0].values[0];
+  return {
+    id: values[0] as 'global',
+    systemInstruction: values[1] as string,
+    model: values[2] as string
+  };
+};
+
+export const saveSettingsToDB = async (settings: KBSettings): Promise<void> => {
+  const db = await initDB();
+  db.run(`
+    INSERT OR REPLACE INTO settings (id, systemInstruction, model)
+    VALUES (?, ?, ?)
+  `, [settings.id, settings.systemInstruction, settings.model]);
+  await persistLocal();
 };
 
 export const saveDocumentToDB = async (kbDoc: Omit<KBDocument, 'id'>): Promise<string> => {
