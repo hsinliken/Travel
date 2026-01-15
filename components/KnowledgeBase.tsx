@@ -51,10 +51,7 @@ const FilePreviewModal: React.FC<{
 
   const fetchExcel = async () => {
     try {
-      const response = await fetch(url, { 
-        method: 'GET',
-        cache: 'default'
-      });
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP_${response.status}`);
@@ -66,7 +63,10 @@ const FilePreviewModal: React.FC<{
       const data: { [key: string]: any[][] } = {};
       workbook.SheetNames.forEach((name: string) => {
         const sheet = workbook.Sheets[name];
-        data[name] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0 + 200 }) as any[][];
+        // 修正：header: 1 代表取得二維陣列。不要設定 range (除非要跳過行數)。
+        // 我們手動限制讀取前 300 行以維持預覽效能。
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        data[name] = rawRows.slice(0, 300); 
       });
 
       if (Object.keys(data).length === 0) throw new Error("EMPTY_SHEET");
@@ -78,9 +78,9 @@ const FilePreviewModal: React.FC<{
     } catch (err: any) {
       console.error("Excel Load Error:", err);
       if (err.name === "TypeError" || err.message.includes("fetch")) {
-        setError("由於 Firebase 安全性限制 (CORS)，無法直接在此預覽檔案內容。");
+        setError("由於 Firebase 安全性限制 (CORS)，無法在此直接預覽 Excel 內容。");
       } else {
-        setError("檔案格式解析失敗。");
+        setError("檔案格式解析失敗，或檔案內容為空。");
       }
     } finally {
       setLoading(false);
@@ -122,16 +122,16 @@ const FilePreviewModal: React.FC<{
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-800"></div>
-              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">AI 正在讀取檔案內容...</p>
+              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">AI 正在讀取內容...</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
               <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mb-6">
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
-              <p className="text-slate-800 font-bold mb-2">{error}</p>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all flex items-center gap-2">
-                開啟原始檔案
+              <p className="text-slate-800 font-bold mb-4">{error}</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all">
+                直接開啟原始檔案
               </a>
             </div>
           ) : isExcel ? (
@@ -150,18 +150,27 @@ const FilePreviewModal: React.FC<{
               <div className="flex-grow overflow-auto border border-slate-200 rounded-2xl shadow-inner bg-white">
                 <table className="w-full text-left border-collapse min-w-max">
                   <tbody className="divide-y divide-slate-100">
-                    {excelData[activeSheet]?.map((row, i) => (
-                      <tr key={i} className={i === 0 ? 'bg-slate-50 sticky top-0' : 'hover:bg-slate-50/50'}>
-                        {row.map((cell, j) => (
-                          <td key={j} className={`p-4 text-sm ${i === 0 ? 'font-black text-slate-800' : 'text-slate-600 font-medium'}`}>
-                            {cell}
-                          </td>
-                        ))}
+                    {excelData[activeSheet]?.length > 0 ? (
+                      excelData[activeSheet].map((row, i) => (
+                        <tr key={i} className={i === 0 ? 'bg-slate-50 sticky top-0' : 'hover:bg-slate-50/50'}>
+                          {row.map((cell, j) => (
+                            <td key={j} className={`p-4 text-sm ${i === 0 ? 'font-black text-slate-800' : 'text-slate-600 font-medium'}`}>
+                              {cell?.toString() || ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="p-20 text-center text-slate-400 font-bold italic">此分頁沒有內容</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
+              <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest text-right">
+                Previewing first 300 rows for performance
+              </p>
             </div>
           ) : isImage ? (
             <div className="h-full flex items-center justify-center p-4">
