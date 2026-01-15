@@ -19,7 +19,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const t = translations[lang];
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [showCorsHelp, setShowCorsHelp] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [reviewerInput, setReviewerInput] = useState('');
   const [publishDateInput, setPublishDateInput] = useState(new Date().toISOString().split('T')[0]);
@@ -33,7 +32,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const handlePushToCloud = async () => {
     setIsProcessing(true);
     setStatus("Pushing SQLite physical file to Cloud Storage...");
-    setShowCorsHelp(false);
     try {
       await syncToCloud();
       setLastSync(new Date().toISOString());
@@ -43,7 +41,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       console.error(e);
       if (checkIsCorsError(e)) {
         setStatus(`Error: ${t.corsError}`);
-        setShowCorsHelp(true);
       } else {
         setStatus(`Error: ${e.message || "Failed to push to cloud."}`);
       }
@@ -55,7 +52,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   const handlePullFromCloud = async () => {
     setIsProcessing(true);
     setStatus("Downloading latest database from Cloud...");
-    setShowCorsHelp(false);
     try {
       const success = await syncFromCloud();
       if (success) {
@@ -69,7 +65,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       console.error(e);
       if (checkIsCorsError(e)) {
         setStatus(`Error: ${t.corsError}`);
-        setShowCorsHelp(true);
       } else {
         setStatus(`Error: ${e.message || "Pull failed."}`);
       }
@@ -105,6 +100,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
   };
 
   const handleClearAll = async () => {
+    console.log("Clear All triggered");
     const confirmMsg = lang === 'zh-TW' 
       ? "確定要清空所有知識庫內容嗎？這將無法復原。" 
       : "Are you sure you want to clear the ENTIRE knowledge base? This cannot be undone.";
@@ -114,7 +110,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
       setStatus("Clearing database...");
       try {
         await onClearAll();
-        setStatus("Database cleared. Remember to 'Push' if you want to clear cloud state too.");
+        setStatus("Database cleared locally.");
         setTimeout(() => setStatus(null), 3000);
       } catch (e: any) {
         console.error("Clear error:", e);
@@ -254,7 +250,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ documents, onAddDoc, on
               <button 
                 onClick={handleClearAll}
                 disabled={isProcessing}
-                className="text-red-500 hover:text-red-700 font-black text-[9px] uppercase tracking-widest px-2 py-1 rounded hover:bg-red-50 transition-all active:scale-95"
+                className="text-red-500 hover:text-red-700 font-black text-[9px] uppercase tracking-widest px-2 py-1 rounded hover:bg-red-50 transition-all active:scale-95 cursor-pointer"
               >
                 Clear All
               </button>
