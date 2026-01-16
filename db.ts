@@ -98,17 +98,28 @@ export const initDB = async () => {
 
   dbInstance = savedData ? new SQL.Database(savedData) : new SQL.Database();
 
+  // 更新 documents 表結構以符合規章管理需求
   dbInstance.run(`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
+      docId TEXT,
       name TEXT,
       type TEXT,
-      sourceType TEXT,
+      department TEXT,
+      summary TEXT,
       content TEXT,
+      sourceType TEXT,
+      url TEXT,
+      version TEXT,
+      status TEXT,
       uploadDate TEXT,
-      reviewer TEXT,
       publishDate TEXT,
-      url TEXT
+      effectiveDate TEXT,
+      expiryDate TEXT,
+      owner TEXT,
+      lastReviewDate TEXT,
+      tags TEXT,
+      reviewer TEXT
     )
   `);
 
@@ -119,6 +130,30 @@ export const initDB = async () => {
       model TEXT
     )
   `);
+
+  dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS query_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT,
+      document_ids TEXT
+    )
+  `);
+
+  // 自動處理遷移：如果舊版資料庫缺少欄位，這裡嘗試補齊（簡易版）
+  try {
+    dbInstance.run("ALTER TABLE documents ADD COLUMN docId TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN department TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN summary TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN version TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN status TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN effectiveDate TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN expiryDate TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN owner TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN lastReviewDate TEXT");
+    dbInstance.run("ALTER TABLE documents ADD COLUMN tags TEXT");
+  } catch (e) {
+    // 欄位可能已存在，忽視錯誤
+  }
 
   if (!savedData) {
     await persistLocal();
@@ -136,50 +171,39 @@ const persistLocal = async () => {
 export const fetchSettingsFromDB = async (): Promise<KBSettings> => {
   const db = await initDB();
   const res = db.exec("SELECT * FROM settings WHERE id = 'global'");
-  
   const defaultSettings: KBSettings = {
     id: 'global',
-    systemInstruction: `You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊). Use the provided context to answer accurately. If the information is not in the context, say you don't know based on current data.`,
+    systemInstruction: `You are an expert travel assistant for "Big Eagle Travel" (大鷹旅遊). Use the provided context to answer accurately.`,
     model: 'gemini-3-flash-preview'
   };
-
   if (res.length === 0) return defaultSettings;
-  
   const values = res[0].values[0];
-  return {
-    id: values[0] as 'global',
-    systemInstruction: values[1] as string,
-    model: values[2] as string
-  };
+  return { id: values[0] as 'global', systemInstruction: values[1] as string, model: values[2] as string };
 };
 
 export const saveSettingsToDB = async (settings: KBSettings): Promise<void> => {
   const db = await initDB();
-  db.run(`
-    INSERT OR REPLACE INTO settings (id, systemInstruction, model)
-    VALUES (?, ?, ?)
-  `, [settings.id, settings.systemInstruction, settings.model]);
+  db.run(`INSERT OR REPLACE INTO settings (id, systemInstruction, model) VALUES (?, ?, ?)`, [settings.id, settings.systemInstruction, settings.model]);
   await persistLocal();
 };
 
 export const saveDocumentToDB = async (kbDoc: Omit<KBDocument, 'id'>): Promise<string> => {
   const db = await initDB();
   const id = crypto.randomUUID();
-  const uploadDate = new Date().toISOString();
   
   db.run(`
-    INSERT INTO documents (id, name, type, sourceType, content, uploadDate, reviewer, publishDate, url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO documents (
+      id, docId, name, type, department, summary, content, sourceType, url, 
+      version, status, uploadDate, publishDate, effectiveDate, expiryDate, 
+      owner, lastReviewDate, tags, reviewer
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
-    id, 
-    kbDoc.name, 
-    kbDoc.type, 
-    kbDoc.sourceType, 
-    kbDoc.content, 
-    uploadDate, 
-    kbDoc.reviewer || 'System', 
-    kbDoc.publishDate || uploadDate, 
-    kbDoc.url || ''
+    id, kbDoc.docId || '', kbDoc.name, kbDoc.type, kbDoc.department || '', kbDoc.summary || '', 
+    kbDoc.content, kbDoc.sourceType, kbDoc.url || '', kbDoc.version || 'V1.0', 
+    kbDoc.status || '生效', kbDoc.uploadDate, kbDoc.publishDate, kbDoc.effectiveDate || kbDoc.uploadDate, 
+    kbDoc.expiryDate || '', kbDoc.owner || '', kbDoc.lastReviewDate || kbDoc.uploadDate, 
+    kbDoc.tags || '', kbDoc.reviewer || 'System'
   ]);
 
   await persistLocal();
@@ -190,11 +214,9 @@ export const updateDocumentInDB = async (id: string, updates: Partial<KBDocument
   const db = await initDB();
   const fields = Object.keys(updates);
   if (fields.length === 0) return;
-
   const setClause = fields.map(f => `${f} = ?`).join(', ');
   const values = fields.map(f => (updates as any)[f]);
   values.push(id);
-
   db.run(`UPDATE documents SET ${setClause} WHERE id = ?`, values);
   await persistLocal();
 };
@@ -202,15 +224,11 @@ export const updateDocumentInDB = async (id: string, updates: Partial<KBDocument
 export const fetchDocumentsFromDB = async (): Promise<KBDocument[]> => {
   const db = await initDB();
   const res = db.exec("SELECT * FROM documents ORDER BY uploadDate DESC");
-  
   if (res.length === 0) return [];
-  
   const columns = res[0].columns;
   return res[0].values.map((row: any[]) => {
     const doc: any = {};
-    columns.forEach((col: string, i: number) => {
-      doc[col] = row[i];
-    });
+    columns.forEach((col: string, i: number) => { doc[col] = row[i]; });
     return doc as KBDocument;
   });
 };
@@ -224,5 +242,52 @@ export const deleteDocumentFromDB = async (id: string): Promise<void> => {
 export const clearAllDocumentsFromDB = async (): Promise<void> => {
   const db = await initDB();
   db.run("DELETE FROM documents");
+  db.run("DELETE FROM query_logs");
   await persistLocal();
+};
+
+export const logQueryToDB = async (docNamesOrUrls: string[]): Promise<void> => {
+  const db = await initDB();
+  const docs = await fetchDocumentsFromDB();
+  const foundIds = docNamesOrUrls.map(val => {
+    const d = docs.find(doc => doc.name === val || doc.url === val);
+    return d ? d.id : null;
+  }).filter(id => id !== null);
+  if (foundIds.length === 0) return;
+  db.run(`INSERT INTO query_logs (timestamp, document_ids) VALUES (?, ?)`, [new Date().toISOString(), foundIds.join(',')]);
+  await persistLocal();
+};
+
+export interface QueryStats {
+  totalQueries: number;
+  docUsage: { docId: string; count: number; docName: string; type: string }[];
+  timeChartData: { label: string; count: number }[];
+}
+
+export const fetchQueryStats = async (period: 'day' | 'week' | 'month'): Promise<QueryStats> => {
+  const db = await initDB();
+  const docs = await fetchDocumentsFromDB();
+  const now = new Date();
+  let startTime = new Date();
+  if (period === 'day') startTime.setHours(now.getHours() - 24);
+  else if (period === 'week') startTime.setDate(now.getDate() - 7);
+  else if (period === 'month') startTime.setMonth(now.getMonth() - 1);
+  const res = db.exec(`SELECT * FROM query_logs WHERE timestamp >= ?`, [startTime.toISOString()]);
+  if (res.length === 0) return { totalQueries: 0, docUsage: [], timeChartData: [] };
+  const logs = res[0].values;
+  const usageMap: Record<string, number> = {};
+  const timeMap: Record<string, number> = {};
+  logs.forEach((row: any[]) => {
+    const timestamp = new Date(row[1]);
+    const ids = (row[2] as string).split(',');
+    ids.forEach(id => { usageMap[id] = (usageMap[id] || 0) + 1; });
+    let timeKey = period === 'day' ? `${timestamp.getHours()}:00` : timestamp.toLocaleDateString();
+    timeMap[timeKey] = (timeMap[timeKey] || 0) + 1;
+  });
+  const docUsage = Object.entries(usageMap).map(([id, count]) => {
+    const doc = docs.find(d => d.id === id);
+    return { docId: id, count, docName: doc?.name || 'Unknown', type: doc?.type || 'File' };
+  }).sort((a, b) => b.count - a.count);
+  const timeChartData = Object.entries(timeMap).map(([label, count]) => ({ label, count }));
+  return { totalQueries: logs.length, docUsage, timeChartData };
 };

@@ -17,7 +17,8 @@ import {
   fetchSettingsFromDB, 
   saveSettingsToDB,
   syncToCloud,
-  syncFromCloud
+  syncFromCloud,
+  logQueryToDB
 } from './db';
 
 const App: React.FC = () => {
@@ -96,7 +97,7 @@ const App: React.FC = () => {
     setView(ViewState.HOME);
   };
 
-  // 自動同步封裝：本地操作後自動推送到雲端
+  // 自動同步封裝
   const autoSyncToCloud = async (actionName: string) => {
     try {
       setSyncStatus(`正在將「${actionName}」同步至雲端...`);
@@ -114,7 +115,6 @@ const App: React.FC = () => {
       const id = await saveDocumentToDB(doc);
       const newDoc = { ...doc, id } as KBDocument;
       setDocuments(prev => [newDoc, ...prev]);
-      // 自動同步
       await autoSyncToCloud("新增文件");
     } catch (error) {
       console.error("SQLite save error:", error);
@@ -126,7 +126,6 @@ const App: React.FC = () => {
     try {
       await updateDocumentInDB(id, updates);
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-      // 自動同步
       await autoSyncToCloud("更新文件");
     } catch (error) {
       console.error("SQLite update error:", error);
@@ -137,7 +136,6 @@ const App: React.FC = () => {
     try {
       await deleteDocumentFromDB(id);
       setDocuments(prev => prev.filter(d => d.id !== id));
-      // 自動同步
       await autoSyncToCloud("刪除文件");
     } catch (error) {
       console.error("SQLite delete error:", error);
@@ -148,7 +146,6 @@ const App: React.FC = () => {
     try {
       await clearAllDocumentsFromDB();
       setDocuments([]);
-      // 自動同步
       await autoSyncToCloud("清空資料庫");
     } catch (error) {
       console.error("Failed to clear documents:", error);
@@ -159,10 +156,18 @@ const App: React.FC = () => {
     try {
       await saveSettingsToDB(newSettings);
       setSettings(newSettings);
-      // 自動同步
       await autoSyncToCloud("更新系統設定");
     } catch (error) {
       console.error("Failed to update settings:", error);
+    }
+  };
+
+  const handleLogQuery = async (citedNames: string[]) => {
+    try {
+      await logQueryToDB(citedNames);
+      // 查詢日誌不需要立即自動推送雲端，可隨下次操作同步
+    } catch (e) {
+      console.error("Log query error:", e);
     }
   };
 
@@ -178,7 +183,6 @@ const App: React.FC = () => {
         setLang={handleSetLang}
       />
 
-      {/* 全域同步狀態提示 */}
       {syncStatus && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-fade-in">
           <div className="bg-slate-900/90 backdrop-blur-md text-white px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-3 border border-white/10">
@@ -197,7 +201,12 @@ const App: React.FC = () => {
         ) : (
           <div className="h-full overflow-y-auto">
             {view === ViewState.HOME && (
-              <KnowledgeBase documents={documents} lang={lang} settings={settings} />
+              <KnowledgeBase 
+                documents={documents} 
+                lang={lang} 
+                settings={settings} 
+                onLogQuery={handleLogQuery}
+              />
             )}
 
             {view === ViewState.USER_MANUAL && (

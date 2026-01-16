@@ -2,15 +2,25 @@
 export type Language = 'en' | 'zh-TW' | 'zh-CN' | 'ja';
 
 export interface KBDocument {
-  id: string;
-  name: string;
-  type: string;
+  id: string;              // 系統內部唯一碼 (UUID)
+  docId: string;           // 規章編號 (如 HR-001)
+  name: string;            // 規章名稱 (原 Title)
+  type: string;            // 類型 (人事/財務/內控...)
+  department: string;      // 適用單位
+  summary: string;         // 白話摘要 (AI 生成)
+  content: string;         // 規章全文
   sourceType: 'file' | 'web';
-  content: string;
+  url: string;             // 原始檔案連結
+  version: string;         // 版本 (V1.0)
+  status: '草稿' | '審核中' | '生效' | '作廢';
   uploadDate: string;
-  reviewer: string;      // The admin who reviewed the content
-  publishDate: string;   // The date it was officially published
-  url?: string;
+  publishDate: string;     // 原始發佈日
+  effectiveDate: string;   // 生效日
+  expiryDate: string;      // 失效日
+  owner: string;           // 負責人
+  lastReviewDate: string;  // 最近一次檢視
+  tags: string;            // 標籤 (逗號分隔)
+  reviewer: string;        // 審核人
 }
 
 export interface KBSettings {
