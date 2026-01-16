@@ -113,21 +113,33 @@ export const queryKnowledgeBase = async (queryText: string, documents: KBDocumen
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     const model = settings.model || 'gemini-3-flash-preview';
     if (documents.length === 0) return { answer: lang === 'en' ? "Knowledge base is empty." : "知識庫目前沒有資料。", sources: [] };
-    const context = documents.map((doc, index) => `[ID: ${index + 1}] Source: ${doc.name}\n${doc.content}`).join('\n\n---\n\n');
-    const systemInstruction = `${settings.systemInstruction}\nRespond in ${lang}. Cite sources by ID in parentheses.`;
+    
+    // 使用 (ID) 標註上下文
+    const context = documents.map((doc, index) => `(${index + 1}) Source: ${doc.name}\n${doc.content}`).join('\n\n---\n\n');
+    
+    // 嚴格指示引用格式
+    const systemInstruction = `${settings.systemInstruction}\nRespond in ${lang}. MUST cite sources using ONLY the number in parentheses at the end of relevant sentences, for example: (1) or (1, 2). DO NOT use "ID" prefix.`;
+    
     const response = await ai.models.generateContent({
       model,
       contents: [{ parts: [{ text: `Context:\n${context}\n\nQuestion: ${queryText}` }] }],
       config: { systemInstruction, temperature: 0 }
     });
+    
     const answer = response.text || "No response.";
     const idSet = new Set<number>();
+    // 匹配 (1) 或 (1, 2)
     const citationRegex = /\(([\d\s,]+)\)/g;
     let match;
     while ((match = citationRegex.exec(answer)) !== null) {
       match[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n)).forEach(id => idSet.add(id));
     }
-    const usedSources = Array.from(idSet).sort((a, b) => a - b).filter(id => id > 0 && id <= documents.length).map(id => `(${id}) ${documents[id - 1].name}`);
+    
+    const usedSources = Array.from(idSet)
+      .sort((a, b) => a - b)
+      .filter(id => id > 0 && id <= documents.length)
+      .map(id => `(${id}) ${documents[id - 1].name}`);
+      
     return { answer, sources: usedSources };
   } catch (error: any) {
     return { answer: handleGeminiError(error, lang), sources: [] };

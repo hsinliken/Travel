@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { KBDocument, ChatMessage, Language, KBSettings } from '../types';
 import { queryKnowledgeBase } from '../services/geminiService';
 import { translations } from '../translations';
+import { fetchTopDocuments } from '../db';
 import * as XLSX from "xlsx";
 
 interface KnowledgeBaseProps {
@@ -160,30 +161,39 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
+  const [topDocs, setTopDocs] = useState<KBDocument[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isTyping]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isTyping) return;
+  useEffect(() => {
+    const loadTopDocs = async () => {
+      const docs = await fetchTopDocuments(3);
+      setTopDocs(docs);
+    };
+    loadTopDocs();
+  }, [documents]);
 
-    const userMessage: ChatMessage = { role: 'user', content: input, timestamp: new Date() };
+  const handleSendMessage = async (e: React.FormEvent | string) => {
+    if (typeof e !== 'string') e.preventDefault();
+    const query = typeof e === 'string' ? e : input;
+    if (!query.trim() || isTyping) return;
+
+    const userMessage: ChatMessage = { role: 'user', content: query, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
 
     try {
-      const { answer, sources } = await queryKnowledgeBase(input, documents, lang, settings);
+      const { answer, sources } = await queryKnowledgeBase(query, documents, lang, settings);
       const assistantMessage: ChatMessage = { role: 'assistant', content: answer, timestamp: new Date(), sources };
       setMessages(prev => [...prev, assistantMessage]);
       
-      // 提取並紀錄引用
+      // 紀錄計數
       if (sources && sources.length > 0 && onLogQuery) {
-        const citedNames = sources.map(s => s.match(/^\((\d+)\)\s+(.*)$/)?.[2] || s);
-        onLogQuery(citedNames);
+        onLogQuery(sources); // 傳遞 (ID) Name 格式
       }
     } catch (error) {
       console.error("Chat Error:", error);
@@ -200,13 +210,22 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
             <div className="w-24 h-24 bg-sky-800 rounded-[32px] flex items-center justify-center text-white text-5xl shadow-2xl mb-8 animate-bounce shadow-sky-900/20">🦅</div>
             <h2 className="text-4xl font-black text-slate-800 tracking-tight mb-4">{t.title}</h2>
             <p className="text-slate-500 text-lg font-medium leading-relaxed">{t.subtitle}</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 w-full">
-              {[{ icon: '🇯🇵', text: lang === 'en' ? 'Japan Itinerary' : '日本行程安排' }, { icon: '🏖️', text: lang === 'en' ? 'Beach Vacations' : '海島度假推薦' }, { icon: '🏔️', text: lang === 'en' ? 'Europe Tours' : '歐洲深度之旅' }].map((item, idx) => (
-                <button key={idx} onClick={() => setInput(item.text)} className="bg-white/60 hover:bg-white border border-slate-200 p-6 rounded-[28px] transition-all hover:shadow-xl hover:-translate-y-1 group">
-                  <span className="text-3xl mb-3 block group-hover:scale-125 transition-transform">{item.icon}</span>
-                  <span className="font-black text-slate-700 uppercase tracking-widest text-[10px]">{item.text}</span>
-                </button>
-              ))}
+            
+            {/* 熱門諮詢推薦 */}
+            <div className="w-full mt-12 space-y-4">
+               <div className="flex items-center justify-center gap-2 mb-6">
+                 <div className="h-[1px] bg-slate-200 flex-grow"></div>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">🔥 熱門諮詢推薦</span>
+                 <div className="h-[1px] bg-slate-200 flex-grow"></div>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {topDocs.map((doc, idx) => (
+                  <button key={doc.id} onClick={() => handleSendMessage(doc.name)} className="bg-white/60 hover:bg-white border border-slate-200 p-5 rounded-[28px] transition-all hover:shadow-xl hover:-translate-y-1 text-left flex flex-col justify-between group">
+                    <span className="text-2xl mb-2">{['🏆', '🥈', '🥉'][idx] || '📝'}</span>
+                    <span className="font-black text-slate-800 text-[11px] line-clamp-2 uppercase tracking-tight group-hover:text-sky-800 transition-colors">{doc.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -219,20 +238,23 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
                   <span className={`text-[9px] font-bold ${msg.role === 'user' ? 'text-white/40' : 'text-slate-300'}`}>• {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="prose prose-slate max-w-none leading-relaxed font-medium whitespace-pre-wrap">{msg.content}</div>
+                
                 {msg.sources && msg.sources.length > 0 && (
                   <div className={`mt-8 pt-6 border-t ${msg.role === 'user' ? 'border-white/10' : 'border-slate-100'}`}>
                     <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${msg.role === 'user' ? 'text-white/60' : 'text-slate-400'}`}>{t.sourcesFound} ({msg.sources.length})</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-2">
                       {msg.sources.map((src, sIdx) => {
-                        const idMatch = src.match(/^\((\d+)\)\s+(.*)$/);
-                        const id = idMatch ? idMatch[1] : '';
-                        const cleanLabel = idMatch ? idMatch[2] : src;
-                        const isUrl = cleanLabel.startsWith('http');
-                        const doc = documents.find(d => d.url === cleanLabel || d.name === cleanLabel);
+                        // src 格式為 (3) Name
+                        const match = src.match(/^\((\d+)\)\s+(.*)$/);
+                        const id = match ? match[1] : '';
+                        const label = match ? match[2] : src;
+                        const isUrl = label.startsWith('http');
+                        const doc = documents.find(d => d.url === label || d.name === label);
+                        
                         return (
-                          <button key={sIdx} onClick={() => { if (doc?.url) setPreviewFile({ url: doc.url, name: doc.name }); else if (isUrl) window.open(cleanLabel, '_blank'); }} className={`flex items-center gap-2 pr-4 pl-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${msg.role === 'user' ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-50 border-slate-200 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-800'}`}>
-                            {id && <span className={`w-6 h-6 flex items-center justify-center rounded-lg ${msg.role === 'user' ? 'bg-white/20 text-white' : 'bg-sky-800 text-white'}`}>{id}</span>}
-                            <span className="truncate max-w-[120px] md:max-w-[200px]">{isUrl ? new URL(cleanLabel).hostname : cleanLabel}</span>
+                          <button key={sIdx} onClick={() => { if (doc?.url) setPreviewFile({ url: doc.url, name: doc.name }); else if (isUrl) window.open(label, '_blank'); }} className={`flex items-center gap-2 text-[11px] font-bold transition-all text-left group ${msg.role === 'user' ? 'text-white/80 hover:text-white' : 'text-slate-500 hover:text-sky-800'}`}>
+                            <span className={`flex items-center justify-center w-5 h-5 rounded-md text-[9px] font-black shrink-0 ${msg.role === 'user' ? 'bg-white/20 text-white' : 'bg-sky-100 text-sky-800'}`}>({id})</span>
+                            <span className="truncate group-hover:underline">{label}</span>
                           </button>
                         );
                       })}

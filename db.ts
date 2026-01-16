@@ -98,7 +98,6 @@ export const initDB = async () => {
 
   dbInstance = savedData ? new SQL.Database(savedData) : new SQL.Database();
 
-  // 更新 documents 表結構以符合規章管理需求
   dbInstance.run(`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
@@ -139,7 +138,6 @@ export const initDB = async () => {
     )
   `);
 
-  // 自動處理遷移：如果舊版資料庫缺少欄位，這裡嘗試補齊（簡易版）
   try {
     dbInstance.run("ALTER TABLE documents ADD COLUMN docId TEXT");
     dbInstance.run("ALTER TABLE documents ADD COLUMN department TEXT");
@@ -151,9 +149,7 @@ export const initDB = async () => {
     dbInstance.run("ALTER TABLE documents ADD COLUMN owner TEXT");
     dbInstance.run("ALTER TABLE documents ADD COLUMN lastReviewDate TEXT");
     dbInstance.run("ALTER TABLE documents ADD COLUMN tags TEXT");
-  } catch (e) {
-    // 欄位可能已存在，忽視錯誤
-  }
+  } catch (e) { }
 
   if (!savedData) {
     await persistLocal();
@@ -190,7 +186,6 @@ export const saveSettingsToDB = async (settings: KBSettings): Promise<void> => {
 export const saveDocumentToDB = async (kbDoc: Omit<KBDocument, 'id'>): Promise<string> => {
   const db = await initDB();
   const id = crypto.randomUUID();
-  
   db.run(`
     INSERT INTO documents (
       id, docId, name, type, department, summary, content, sourceType, url, 
@@ -205,7 +200,6 @@ export const saveDocumentToDB = async (kbDoc: Omit<KBDocument, 'id'>): Promise<s
     kbDoc.expiryDate || '', kbDoc.owner || '', kbDoc.lastReviewDate || kbDoc.uploadDate, 
     kbDoc.tags || '', kbDoc.reviewer || 'System'
   ]);
-
   await persistLocal();
   return id;
 };
@@ -249,10 +243,13 @@ export const clearAllDocumentsFromDB = async (): Promise<void> => {
 export const logQueryToDB = async (docNamesOrUrls: string[]): Promise<void> => {
   const db = await initDB();
   const docs = await fetchDocumentsFromDB();
-  const foundIds = docNamesOrUrls.map(val => {
+  // 強制去標號前綴
+  const cleanedNames = docNamesOrUrls.map(name => name.replace(/^\(\d+\)\s*/, '').trim());
+  const foundIds = cleanedNames.map(val => {
     const d = docs.find(doc => doc.name === val || doc.url === val);
     return d ? d.id : null;
   }).filter(id => id !== null);
+  
   if (foundIds.length === 0) return;
   db.run(`INSERT INTO query_logs (timestamp, document_ids) VALUES (?, ?)`, [new Date().toISOString(), foundIds.join(',')]);
   await persistLocal();
@@ -290,4 +287,17 @@ export const fetchQueryStats = async (period: 'day' | 'week' | 'month'): Promise
   }).sort((a, b) => b.count - a.count);
   const timeChartData = Object.entries(timeMap).map(([label, count]) => ({ label, count }));
   return { totalQueries: logs.length, docUsage, timeChartData };
+};
+
+export const fetchTopDocuments = async (limit: number = 3): Promise<KBDocument[]> => {
+  const stats = await fetchQueryStats('month');
+  const docs = await fetchDocumentsFromDB();
+  const topIds = stats.docUsage.slice(0, limit).map(d => d.docId);
+  const topDocs = topIds.map(id => docs.find(d => d.id === id)).filter(Boolean) as KBDocument[];
+  // 如果不足 limit 則補上最新上傳的
+  if (topDocs.length < limit) {
+    const remaining = docs.filter(d => !topIds.includes(d.id)).slice(0, limit - topDocs.length);
+    return [...topDocs, ...remaining];
+  }
+  return topDocs;
 };

@@ -214,7 +214,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
-  const [reviewerInput] = useState('Admin'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingDoc, setEditingDoc] = useState<KBDocument | null>(null);
 
@@ -247,10 +246,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         publishDate: new Date().toISOString(),
         effectiveDate: new Date().toISOString().split('T')[0],
         expiryDate: '',
-        owner: reviewerInput,
+        owner: 'Admin',
         lastReviewDate: new Date().toISOString(),
         tags: '',
-        reviewer: reviewerInput
+        reviewer: 'Admin'
       });
       setStatus("文件上傳成功！");
       setTimeout(() => setStatus(null), 3000);
@@ -284,7 +283,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         owner: 'System',
         lastReviewDate: new Date().toISOString(),
         tags: '#WebImport',
-        reviewer: reviewerInput
+        reviewer: 'Admin'
       });
       setUrlInput('');
       setStatus(null);
@@ -300,7 +299,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
   return (
     <div className="flex h-full bg-slate-50 relative overflow-hidden">
-      {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 w-72 bg-white/80 backdrop-blur-xl border-r border-slate-200 z-[100] transition-transform duration-500 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8 flex flex-col h-full">
           <div className="mb-12">
@@ -334,7 +332,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             <AnalysisDashboard />
           ) : (
             <div className="space-y-8">
-              {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-slate-200 p-8 rounded-[40px] shadow-sm">
                 <div>
                   <h1 className="text-3xl font-black text-slate-800 tracking-tight">規章文件管理</h1>
@@ -354,7 +351,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                 </div>
               </div>
 
-              {/* Table Search */}
               <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-4">
                  <div className="relative max-w-sm w-full">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
@@ -371,7 +367,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                  </div>
               </div>
 
-              {/* Documents Professional Table */}
               <div className="bg-white border border-slate-200 rounded-[40px] shadow-sm overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[1800px]">
