@@ -17,7 +17,7 @@ interface AdminDashboardProps {
   onUpdateSettings: (settings: KBSettings) => Promise<void>;
 }
 
-type AdminSubView = 'analysis' | 'management';
+type AdminSubView = 'analysis' | 'management' | 'settings';
 
 // 編輯文件對話框
 const EditDocModal: React.FC<{
@@ -205,8 +205,90 @@ const AnalysisDashboard: React.FC = () => {
   );
 };
 
+const SettingsDashboard: React.FC<{ settings: KBSettings; onUpdate: (s: KBSettings) => Promise<void> }> = ({ settings, onUpdate }) => {
+  const [formData, setFormData] = useState<KBSettings>(settings);
+  const [isSaving, setIsSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onUpdate(formData);
+      setStatus("設定已成功儲存並同步雲端！");
+      setTimeout(() => setStatus(null), 3000);
+    } catch (e) {
+      setStatus("儲存失敗，請檢查網路。");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputClass = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium focus:ring-4 focus:ring-sky-800/10 focus:border-sky-800 outline-none transition-all";
+  const labelClass = "block text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 ml-1";
+
+  return (
+    <div className="max-w-4xl animate-fade-in space-y-8">
+       {status && (
+          <div className="bg-sky-800 text-white p-6 rounded-[32px] font-black uppercase tracking-widest text-xs animate-bounce shadow-xl">
+            ✨ {status}
+          </div>
+       )}
+       <div className="bg-white border border-slate-200 p-10 rounded-[48px] shadow-sm">
+          <div className="mb-10">
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">系統參數設定</h2>
+            <p className="text-slate-500 font-medium">調整 AI 的核心行為邏輯與使用的語言模型。</p>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-10">
+            <div>
+              <label className={labelClass}>System Instruction (AI 系統 Prompt)</label>
+              <textarea 
+                value={formData.systemInstruction} 
+                onChange={e => setFormData({ ...formData, systemInstruction: e.target.value })} 
+                className={`${inputClass} h-64 resize-none leading-relaxed`}
+                placeholder="例如：你是一位專業的大鷹旅遊客服助手..."
+              />
+              <p className="mt-3 text-[10px] text-slate-400 font-bold leading-relaxed">
+                提示：這是 AI 的「大腦設定」。您可以在此規範它的語氣、回答格式、或特定業務知識偏好。
+              </p>
+            </div>
+
+            <div>
+              <label className={labelClass}>Gemini 核心模型版本</label>
+              <select 
+                value={formData.model} 
+                onChange={e => setFormData({ ...formData, model: e.target.value })} 
+                className={inputClass}
+              >
+                <option value="gemini-3-flash-preview">Gemini 3 Flash (快速且平衡 - 推薦)</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro (具備更強推理能力，較慢)</option>
+                <option value="gemini-2.5-flash-lite-latest">Gemini 2.5 Flash Lite (極速且經濟)</option>
+              </select>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={isSaving}
+              className="w-full py-5 bg-sky-800 text-white rounded-[24px] font-black uppercase tracking-widest shadow-2xl shadow-sky-900/20 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  正在同步設定...
+                </>
+              ) : (
+                '儲存系統參數並同步雲端'
+              )}
+            </button>
+          </form>
+       </div>
+    </div>
+  );
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
-  const { lang, documents } = props;
+  const { lang, documents, settings, onUpdateSettings } = props;
   const t = translations[lang];
   
   const [activeSubView, setActiveSubView] = useState<AdminSubView>('management');
@@ -225,7 +307,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files; if (!files || files.length === 0) return; setIsProcessing(true);
     try {
-      // Fix: Cast the array from FileList to File[] to resolve 'unknown' type errors and access properties like 'name'.
       const fileList = Array.from(files) as File[];
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
@@ -313,7 +394,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           </div>
           <nav className="space-y-2">
             <SidebarItem id="analysis" label="查詢分析" icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>} />
-            <SidebarItem id="management" label="上傳文件管理" icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>} />
+            <SidebarItem id="management" label="規章文件管理" icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>} />
+            <SidebarItem id="settings" label="系統參數設定" icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>} />
           </nav>
           <div className="mt-auto pt-8 border-t border-slate-100">
              <button onClick={() => exportDBFile()} className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-2">匯出本地資料庫</button>
@@ -336,6 +418,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
           {activeSubView === 'analysis' ? (
             <AnalysisDashboard />
+          ) : activeSubView === 'settings' ? (
+            <SettingsDashboard settings={settings} onUpdate={onUpdateSettings} />
           ) : (
             <div className="space-y-8">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-slate-200 p-8 rounded-[40px] shadow-sm">
