@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { KBDocument, Language, KBSettings } from '../types';
 import { extractTextFromFile, extractTextFromUrl, generateAISummary } from '../services/geminiService';
 import { translations } from '../translations';
-import { syncToCloud, syncFromCloud, exportDBFile, importDBFile, fetchQueryStats, QueryStats } from '../db';
+import { syncToCloud, exportDBFile, fetchQueryStats, QueryStats } from '../db';
 import { uploadRawFile } from '../firebase';
-import KnowledgeBase from './KnowledgeBase';
 
 interface AdminDashboardProps {
   documents: KBDocument[];
@@ -43,24 +42,24 @@ const EditDocModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative bg-white w-full max-w-3xl max-h-[90vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+      <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-fade-in">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="text-xl font-black text-slate-800">編輯文件屬性</h3>
+          <h3 className="text-xl font-black text-slate-800">編輯規章屬性</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-800 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <label className={labelClass}>規章編號</label>
+            <label className={labelClass}>Document_ID (規章編號)</label>
             <input type="text" value={formData.docId || ''} onChange={e => setFormData({ ...formData, docId: e.target.value })} className={inputClass} placeholder="如: HR-001" />
           </div>
-          <div>
-            <label className={labelClass}>規章名稱</label>
+          <div className="md:col-span-2">
+            <label className={labelClass}>Title (規章名稱)</label>
             <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>類型 (分類)</label>
+            <label className={labelClass}>Type (類型)</label>
             <select value={formData.type || ''} onChange={e => setFormData({ ...formData, type: e.target.value })} className={inputClass}>
               <option value="人事">人事</option>
               <option value="財務">財務</option>
@@ -71,19 +70,23 @@ const EditDocModal: React.FC<{
             </select>
           </div>
           <div>
-            <label className={labelClass}>適用單位</label>
+            <label className={labelClass}>Department (適用單位)</label>
             <input type="text" value={formData.department || ''} onChange={e => setFormData({ ...formData, department: e.target.value })} className={inputClass} placeholder="全公司" />
           </div>
-          <div className="md:col-span-2">
-            <label className={labelClass}>白話摘要 (AI 生成內容可手動調整)</label>
+          <div>
+            <label className={labelClass}>Owner (負責人)</label>
+            <input type="text" value={formData.owner || ''} onChange={e => setFormData({ ...formData, owner: e.target.value })} className={inputClass} />
+          </div>
+          <div className="md:col-span-3">
+            <label className={labelClass}>Summary (白話摘要 - AI 生成)</label>
             <textarea value={formData.summary || ''} onChange={e => setFormData({ ...formData, summary: e.target.value })} className={`${inputClass} h-24 resize-none`} />
           </div>
           <div>
-            <label className={labelClass}>版本號</label>
+            <label className={labelClass}>Version (版本)</label>
             <input type="text" value={formData.version || ''} onChange={e => setFormData({ ...formData, version: e.target.value })} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>狀態</label>
+            <label className={labelClass}>Status (狀態)</label>
             <select value={formData.status || '生效'} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className={inputClass}>
               <option value="草稿">草稿</option>
               <option value="審核中">審核中</option>
@@ -92,20 +95,24 @@ const EditDocModal: React.FC<{
             </select>
           </div>
           <div>
-            <label className={labelClass}>生效日期</label>
+            <label className={labelClass}>Last_Review_Date (最近檢視)</label>
+            <input type="date" value={formData.lastReviewDate || ''} onChange={e => setFormData({ ...formData, lastReviewDate: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Effective_Date (生效日)</label>
             <input type="date" value={formData.effectiveDate || ''} onChange={e => setFormData({ ...formData, effectiveDate: e.target.value })} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>負責人 (Owner)</label>
-            <input type="text" value={formData.owner || ''} onChange={e => setFormData({ ...formData, owner: e.target.value })} className={inputClass} />
+            <label className={labelClass}>Expiry_Date (失效日)</label>
+            <input type="date" value={formData.expiryDate || ''} onChange={e => setFormData({ ...formData, expiryDate: e.target.value })} className={inputClass} />
           </div>
-          <div className="md:col-span-2">
-            <label className={labelClass}>標籤 (Tags, 逗號分隔)</label>
+          <div>
+            <label className={labelClass}>Tags (標籤)</label>
             <input type="text" value={formData.tags || ''} onChange={e => setFormData({ ...formData, tags: e.target.value })} className={inputClass} placeholder="#ESG, #獎金" />
           </div>
-          <div className="md:col-span-2 flex gap-3 mt-4">
+          <div className="md:col-span-3 flex gap-3 mt-4">
             <button type="submit" disabled={isSaving} className="flex-grow py-4 bg-sky-800 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-50">
-              {isSaving ? '儲存中...' : '儲存變更'}
+              {isSaving ? '儲存中...' : '儲存變更並同步雲端'}
             </button>
             <button type="button" onClick={onClose} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest">取消</button>
           </div>
@@ -115,7 +122,7 @@ const EditDocModal: React.FC<{
   );
 };
 
-const AnalysisDashboard: React.FC<{ lang: Language }> = ({ lang }) => {
+const AnalysisDashboard: React.FC = () => {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [stats, setStats] = useState<QueryStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,7 +179,7 @@ const AnalysisDashboard: React.FC<{ lang: Language }> = ({ lang }) => {
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="bg-white border border-slate-200 p-8 rounded-[40px] shadow-sm h-80 flex flex-col">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-8">查詢頻率分佈</h3>
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-8">分時查詢趨勢</h3>
           <div className="flex-grow flex items-end justify-between gap-1 px-4">
             {stats.timeChartData.map((d, i) => (
               <div key={i} className="flex-grow flex flex-col items-center group relative h-full justify-end">
@@ -183,7 +190,7 @@ const AnalysisDashboard: React.FC<{ lang: Language }> = ({ lang }) => {
           </div>
         </div>
         <div className="bg-white border border-slate-200 p-8 rounded-[40px] shadow-sm h-80 overflow-hidden flex flex-col">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-8">文件熱度排行榜</h3>
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-8">規章引用熱度榜</h3>
           <div className="flex-grow overflow-y-auto space-y-4 pr-2">
             {stats.docUsage.map((d, idx) => (
               <div key={idx} className="flex justify-between items-center p-3 rounded-2xl hover:bg-slate-50 transition-colors">
@@ -199,7 +206,7 @@ const AnalysisDashboard: React.FC<{ lang: Language }> = ({ lang }) => {
 };
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
-  const { lang, documents, settings } = props;
+  const { lang, documents } = props;
   const t = translations[lang];
   
   const [activeSubView, setActiveSubView] = useState<AdminSubView>('management');
@@ -207,7 +214,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
-  const [reviewerInput, setReviewerInput] = useState('');
+  const [reviewerInput] = useState('Admin'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingDoc, setEditingDoc] = useState<KBDocument | null>(null);
 
@@ -222,14 +229,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
       setStatus(`正在處理「${file.name}」...`);
       const cloudUrl = await uploadRawFile(file);
       const extractedText = await extractTextFromFile(file);
-      setStatus("AI 正在生成摘要...");
+      setStatus("AI 正在分析內容並生成摘要...");
       const summary = await generateAISummary(extractedText);
       
       await props.onAddDoc({
-        docId: '', // 稍後手動編輯
+        docId: '', 
         name: file.name,
         type: '其他',
-        department: '',
+        department: '全公司',
         summary,
         content: extractedText,
         sourceType: 'file',
@@ -240,12 +247,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         publishDate: new Date().toISOString(),
         effectiveDate: new Date().toISOString().split('T')[0],
         expiryDate: '',
-        owner: reviewerInput || 'Admin',
+        owner: reviewerInput,
         lastReviewDate: new Date().toISOString(),
         tags: '',
-        reviewer: reviewerInput || 'Admin'
+        reviewer: reviewerInput
       });
-      setStatus("上傳成功！");
+      setStatus("文件上傳成功！");
       setTimeout(() => setStatus(null), 3000);
     } catch (error: any) { setStatus(`錯誤: ${error.message}`); }
     finally { setIsProcessing(false); if (e.target) e.target.value = ''; }
@@ -254,7 +261,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   const handleAddUrl = async (e: React.FormEvent) => {
     e.preventDefault(); if (!urlInput.trim() || isProcessing) return; setIsProcessing(true);
     try {
-      setStatus("正在抓取網頁內容...");
+      setStatus("正在深度抓取網頁內容...");
       const extractedText = await extractTextFromUrl(urlInput.trim());
       setStatus("AI 正在生成摘要...");
       const summary = await generateAISummary(extractedText);
@@ -274,10 +281,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         publishDate: new Date().toISOString(),
         effectiveDate: new Date().toISOString().split('T')[0],
         expiryDate: '',
-        owner: '系統',
+        owner: 'System',
         lastReviewDate: new Date().toISOString(),
-        tags: '',
-        reviewer: reviewerInput || 'Admin'
+        tags: '#WebImport',
+        reviewer: reviewerInput
       });
       setUrlInput('');
       setStatus(null);
@@ -324,13 +331,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
           )}
 
           {activeSubView === 'analysis' ? (
-            <AnalysisDashboard lang={lang} />
+            <AnalysisDashboard />
           ) : (
             <div className="space-y-8">
               {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-slate-200 p-8 rounded-[40px] shadow-sm">
                 <div>
-                  <h1 className="text-3xl font-black text-slate-800 tracking-tight">上傳文件管理</h1>
+                  <h1 className="text-3xl font-black text-slate-800 tracking-tight">規章文件管理</h1>
                   <p className="text-slate-500 font-medium">所有的規章變更將由 AI 自動生成摘要並同步雲端。</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
@@ -347,42 +354,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                 </div>
               </div>
 
-              {/* URL Import */}
-              <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-[32px] p-6 shadow-sm">
-                <form onSubmit={handleAddUrl} className="flex flex-col sm:flex-row gap-3">
-                  <input type="url" required placeholder="輸入規章網頁連結..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-grow bg-white border border-slate-100 rounded-2xl py-4 px-6 font-medium text-sm focus:ring-2 focus:ring-sky-800/10 outline-none" />
-                  <button type="submit" disabled={isProcessing || !urlInput.trim()} className="bg-slate-800 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md">
-                    抓取並分析
-                  </button>
-                </form>
-              </div>
-
-              {/* Table Toolbar */}
-              <div className="flex justify-between items-center px-4">
+              {/* Table Search */}
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-4">
                  <div className="relative max-w-sm w-full">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </span>
-                    <input type="text" placeholder="搜尋標題或編號..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-3 text-sm font-medium focus:ring-2 focus:ring-sky-800/10 outline-none" />
+                    <input type="text" placeholder="搜尋規章編號或名稱..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-3 text-sm font-medium focus:ring-2 focus:ring-sky-800/10 outline-none shadow-sm" />
                  </div>
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">共 {filteredDocs.length} 份文件</p>
+                 <div className="flex items-center gap-6">
+                    <form onSubmit={handleAddUrl} className="flex gap-2">
+                      <input type="url" required placeholder="網頁連結導入..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-sky-800/20" />
+                      <button type="submit" disabled={isProcessing || !urlInput.trim()} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md">抓取</button>
+                    </form>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest hidden md:block">共 {filteredDocs.length} 份文件</p>
+                 </div>
               </div>
 
-              {/* Documents Table */}
-              <div className="bg-white border border-slate-200 rounded-[40px] shadow-sm overflow-hidden">
+              {/* Documents Professional Table */}
+              <div className="bg-white border border-slate-200 rounded-[40px] shadow-sm overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[1200px]">
+                  <table className="w-full text-left border-collapse min-w-[1800px]">
                     <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">規章編號</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">名稱</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">類型</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">適用單位</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-64">AI 白話摘要</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">版本</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">狀態</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">負責人</th>
-                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">操作</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Document_ID</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Title (規章名稱)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Type (類型)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Department (單位)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-80">Summary (白話摘要)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Version (版本)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Status (狀態)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Effective (生效)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Expiry (失效)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Owner (負責人)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Last Review</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Tags (標籤)</th>
+                        <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest sticky right-0 bg-slate-50 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -390,56 +397,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                         filteredDocs.map((doc) => (
                           <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors group">
                             <td className="p-6">
-                              <span className="bg-slate-100 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-tighter border border-slate-200">
-                                {doc.docId || '未編號'}
+                              <span className="bg-slate-100 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-600 uppercase tracking-tighter border border-slate-200">
+                                {doc.docId || 'N/A'}
                               </span>
                             </td>
                             <td className="p-6">
-                              <div className="flex flex-col">
-                                <span className="font-black text-slate-800 text-sm truncate max-w-[180px]">{doc.name}</span>
-                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mt-1">{new Date(doc.uploadDate).toLocaleDateString()}</span>
+                              <span className="font-black text-slate-800 text-sm">{doc.name}</span>
+                            </td>
+                            <td className="p-6">
+                              <span className="px-2 py-1 bg-sky-50 text-sky-800 text-[10px] font-black uppercase rounded-lg border border-sky-100">{doc.type}</span>
+                            </td>
+                            <td className="p-6 text-xs font-bold text-slate-600">{doc.department}</td>
+                            <td className="p-6">
+                              <div className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-3 italic">
+                                {doc.summary || 'AI 摘要生成中...'}
                               </div>
                             </td>
-                            <td className="p-6">
-                              <span className="text-xs font-bold text-slate-600 bg-slate-100/50 px-2 py-1 rounded-md">{doc.type}</span>
-                            </td>
-                            <td className="p-6">
-                              <span className="text-xs font-bold text-slate-600">{doc.department || '-'}</span>
-                            </td>
-                            <td className="p-6">
-                              <div className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                {doc.summary || '點擊編輯生成摘要'}
-                              </div>
-                            </td>
-                            <td className="p-6">
-                              <span className="text-xs font-black text-sky-800">{doc.version || 'V1.0'}</span>
-                            </td>
+                            <td className="p-6 text-xs font-black text-slate-800">{doc.version}</td>
                             <td className="p-6">
                               <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
                                 doc.status === '生效' ? 'bg-green-100 text-green-700' :
                                 doc.status === '審核中' ? 'bg-amber-100 text-amber-700' :
                                 doc.status === '作廢' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'
                               }`}>
-                                {doc.status || '生效'}
+                                {doc.status}
                               </span>
                             </td>
+                            <td className="p-6 text-xs font-medium text-slate-500">{doc.effectiveDate}</td>
+                            <td className="p-6 text-xs font-medium text-slate-500">{doc.expiryDate || '-'}</td>
+                            <td className="p-6 text-xs font-bold text-slate-700">{doc.owner}</td>
+                            <td className="p-6 text-[10px] font-bold text-slate-400 uppercase">{doc.lastReviewDate}</td>
                             <td className="p-6">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-sky-800 flex items-center justify-center text-[8px] text-white font-black">{doc.owner?.[0] || 'A'}</div>
-                                <span className="text-xs font-bold text-slate-700">{doc.owner || 'Admin'}</span>
-                              </div>
+                               <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                 {(doc.tags || '').split(',').filter(Boolean).map((tag, i) => (
+                                   <span key={i} className="text-[9px] bg-slate-50 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded uppercase font-black tracking-tighter">{tag.trim()}</span>
+                                 ))}
+                               </div>
                             </td>
-                            <td className="p-6">
+                            <td className="p-6 sticky right-0 bg-white shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] group-hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setEditingDoc(doc)} className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="編輯細節">
+                                <button onClick={() => setEditingDoc(doc)} className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="編輯詳情">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
                                 {doc.url && (
-                                  <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="查看原始檔">
+                                  <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="查看檔案連結">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                                   </a>
                                 )}
-                                <button onClick={() => { if(confirm('確定刪除？')) props.onRemoveDoc(doc.id); }} className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="刪除">
+                                <button onClick={() => { if(confirm('確定刪除此規章？')) props.onRemoveDoc(doc.id); }} className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="刪除">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 </button>
                               </div>
@@ -448,11 +453,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={9} className="p-20 text-center">
-                            <div className="flex flex-col items-center gap-4 text-slate-300">
-                               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                               <span className="font-bold italic">目前沒有符合條件的文件</span>
-                            </div>
+                          <td colSpan={13} className="p-20 text-center">
+                            <div className="flex flex-col items-center gap-4 text-slate-300 italic font-bold">目前沒有任何規章文件</div>
                           </td>
                         </tr>
                       )}
