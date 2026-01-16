@@ -223,35 +223,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   );
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return; setIsProcessing(true);
+    const files = e.target.files; if (!files || files.length === 0) return; setIsProcessing(true);
     try {
-      setStatus(`正在處理「${file.name}」...`);
-      const cloudUrl = await uploadRawFile(file);
-      const extractedText = await extractTextFromFile(file);
-      setStatus("AI 正在分析內容並生成摘要...");
-      const summary = await generateAISummary(extractedText);
-      
-      await props.onAddDoc({
-        docId: '', 
-        name: file.name,
-        type: '其他',
-        department: '全公司',
-        summary,
-        content: extractedText,
-        sourceType: 'file',
-        url: cloudUrl,
-        version: 'V1.0',
-        status: '生效',
-        uploadDate: new Date().toISOString(),
-        publishDate: new Date().toISOString(),
-        effectiveDate: new Date().toISOString().split('T')[0],
-        expiryDate: '',
-        owner: 'Admin',
-        lastReviewDate: new Date().toISOString(),
-        tags: '',
-        reviewer: 'Admin'
-      });
-      setStatus("文件上傳成功！");
+      // Fix: Cast the array from FileList to File[] to resolve 'unknown' type errors and access properties like 'name'.
+      const fileList = Array.from(files) as File[];
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        setStatus(`正在處理檔案 (${i + 1}/${fileList.length}): ${file.name}`);
+        
+        const cloudUrl = await uploadRawFile(file);
+        const extractedText = await extractTextFromFile(file);
+        setStatus(`正在為「${file.name}」生成 AI 摘要...`);
+        const summary = await generateAISummary(extractedText);
+        
+        await props.onAddDoc({
+          docId: '', 
+          name: file.name,
+          type: '其他',
+          department: '全公司',
+          summary,
+          content: extractedText,
+          sourceType: 'file',
+          url: cloudUrl,
+          version: 'V1.0',
+          status: '生效',
+          uploadDate: new Date().toISOString(),
+          publishDate: new Date().toISOString(),
+          effectiveDate: new Date().toISOString().split('T')[0],
+          expiryDate: '',
+          owner: 'Admin',
+          lastReviewDate: new Date().toISOString(),
+          tags: '',
+          reviewer: 'Admin'
+        });
+      }
+      setStatus(`${fileList.length} 份文件上傳成功！`);
       setTimeout(() => setStatus(null), 3000);
     } catch (error: any) { setStatus(`錯誤: ${error.message}`); }
     finally { setIsProcessing(false); if (e.target) e.target.value = ''; }
@@ -339,10 +345,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="relative cursor-pointer">
-                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={isProcessing} />
+                    <input type="file" multiple className="hidden" onChange={handleFileUpload} disabled={isProcessing} />
                     <div className="flex items-center gap-2 px-6 py-3 bg-sky-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-900/20 hover:bg-sky-900 transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      {t.uploadNew}
+                      {t.uploadNew} (可多選)
                     </div>
                   </label>
                   <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 bg-white border border-slate-200 rounded-2xl text-slate-800 shadow-md">
@@ -360,8 +366,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                  </div>
                  <div className="flex items-center gap-6">
                     <form onSubmit={handleAddUrl} className="flex gap-2">
-                      <input type="url" required placeholder="網頁連結導入..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-sky-800/20" />
-                      <button type="submit" disabled={isProcessing || !urlInput.trim()} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md">抓取</button>
+                      <input type="url" required placeholder="網頁導入..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-medium outline-none" />
+                      <button type="submit" disabled={isProcessing || !urlInput.trim()} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest">抓取</button>
                     </form>
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest hidden md:block">共 {filteredDocs.length} 份文件</p>
                  </div>
@@ -431,15 +437,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                             </td>
                             <td className="p-6 sticky right-0 bg-white shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] group-hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setEditingDoc(doc)} className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="編輯詳情">
+                                <button onClick={() => setEditingDoc(doc)} className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
                                 {doc.url && (
-                                  <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all" title="查看檔案連結">
+                                  <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-800 hover:bg-sky-50 rounded-xl transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                                   </a>
                                 )}
-                                <button onClick={() => { if(confirm('確定刪除此規章？')) props.onRemoveDoc(doc.id); }} className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="刪除">
+                                <button onClick={() => { if(confirm('確定刪除此規章？')) props.onRemoveDoc(doc.id); }} className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 </button>
                               </div>
@@ -448,9 +454,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={13} className="p-20 text-center">
-                            <div className="flex flex-col items-center gap-4 text-slate-300 italic font-bold">目前沒有任何規章文件</div>
-                          </td>
+                          <td colSpan={13} className="p-20 text-center text-slate-300 italic font-bold">目前沒有任何規章文件</td>
                         </tr>
                       )}
                     </tbody>

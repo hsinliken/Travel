@@ -243,7 +243,7 @@ export const clearAllDocumentsFromDB = async (): Promise<void> => {
 export const logQueryToDB = async (docNamesOrUrls: string[]): Promise<void> => {
   const db = await initDB();
   const docs = await fetchDocumentsFromDB();
-  // 強制去標號前綴
+  // 強制去除如 "(3) " 這樣的前綴，只保留名稱進行匹配
   const cleanedNames = docNamesOrUrls.map(name => name.replace(/^\(\d+\)\s*/, '').trim());
   const foundIds = cleanedNames.map(val => {
     const d = docs.find(doc => doc.name === val || doc.url === val);
@@ -294,7 +294,7 @@ export const fetchTopDocuments = async (limit: number = 3): Promise<KBDocument[]
   const docs = await fetchDocumentsFromDB();
   const topIds = stats.docUsage.slice(0, limit).map(d => d.docId);
   const topDocs = topIds.map(id => docs.find(d => d.id === id)).filter(Boolean) as KBDocument[];
-  // 如果不足 limit 則補上最新上傳的
+  // 如果日誌數據不足，補齊最新上傳的文件
   if (topDocs.length < limit) {
     const remaining = docs.filter(d => !topIds.includes(d.id)).slice(0, limit - topDocs.length);
     return [...topDocs, ...remaining];
