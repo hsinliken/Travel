@@ -3,8 +3,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { KBDocument, ChatMessage, Language, KBSettings } from '../types';
 import { queryKnowledgeBase } from '../services/geminiService';
 import { translations } from '../translations';
-import { fetchTopDocuments } from '../db';
+import { fetchTopKeywords } from '../db';
 import * as XLSX from "xlsx";
+import * as mammoth from "mammoth";
 
 interface KnowledgeBaseProps {
   documents: KBDocument[];
@@ -21,6 +22,7 @@ const FilePreviewModal: React.FC<{
 }> = ({ url, fileName, onClose }) => {
   const [excelData, setExcelData] = useState<{ [key: string]: any[][] }>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
+  const [docxHtml, setDocxHtml] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +43,13 @@ const FilePreviewModal: React.FC<{
   const isExcel = ['xlsx', 'xls', 'csv'].includes(fileExt);
   const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt);
   const isPdf = fileExt === 'pdf';
+  const isDocx = fileExt === 'docx';
 
   useEffect(() => {
     if (isExcel) fetchExcel();
+    else if (isDocx) fetchDocx();
     else setLoading(false);
-  }, [url, isExcel]);
+  }, [url, isExcel, isDocx]);
 
   const fetchExcel = async () => {
     try {
@@ -69,6 +73,20 @@ const FilePreviewModal: React.FC<{
     }
   };
 
+  const fetchDocx = async () => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      setDocxHtml(result.value);
+    } catch (err: any) {
+      setError("無法解析 Word 檔案，請下載後查閱。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const displayFileName = decodeURIComponent((fileName || url).split('/').pop()?.split('?')[0] || 'Document');
 
   return (
@@ -78,7 +96,7 @@ const FilePreviewModal: React.FC<{
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-white z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sky-800 rounded-xl flex items-center justify-center text-white text-xl shadow-inner">
-              {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : '📎'}
+              {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : isDocx ? '📝' : '📎'}
             </div>
             <div>
               <h3 className="font-black text-slate-800 truncate max-w-[200px] md:max-w-md">{displayFileName}</h3>
@@ -128,6 +146,8 @@ const FilePreviewModal: React.FC<{
                 </table>
               </div>
             </div>
+          ) : isDocx ? (
+            <div className="bg-white p-8 md:p-12 rounded-2xl shadow-inner prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: docxHtml }}></div>
           ) : isImage ? (
             <div className="h-full flex items-center justify-center">
               <img src={url} alt={fileName} className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl" />
@@ -151,7 +171,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
-  const [topDocs, setTopDocs] = useState<KBDocument[]>([]);
+  const [trendingKeywords, setTrendingKeywords] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,11 +179,11 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
   }, [messages, isTyping]);
 
   useEffect(() => {
-    const loadTopDocs = async () => {
-      const docs = await fetchTopDocuments(3);
-      setTopDocs(docs);
+    const loadKeywords = async () => {
+      const keywords = await fetchTopKeywords(6);
+      setTrendingKeywords(keywords);
     };
-    loadTopDocs();
+    loadKeywords();
   }, [documents]);
 
   const handleSendMessage = async (e: React.FormEvent | string) => {
@@ -203,14 +223,18 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ documents, lang, settings
             <div className="w-full space-y-4">
                <div className="flex items-center justify-center gap-2 mb-6">
                  <div className="h-[1px] bg-slate-200 flex-grow"></div>
-                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">🔥 熱門諮詢推薦</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">🔥 熱門查詢關鍵字</span>
                  <div className="h-[1px] bg-slate-200 flex-grow"></div>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {topDocs.map((doc, idx) => (
-                  <button key={doc.id} onClick={() => handleSendMessage(doc.name)} className="bg-white/60 hover:bg-white border border-slate-200 p-5 rounded-[28px] transition-all hover:shadow-xl hover:-translate-y-1 text-left flex flex-col justify-between group">
-                    <span className="text-2xl mb-2">{['🏆', '🥈', '🥉'][idx] || '📝'}</span>
-                    <span className="font-black text-slate-800 text-[11px] line-clamp-2 uppercase tracking-tight group-hover:text-sky-800">{doc.name}</span>
+               <div className="flex flex-wrap justify-center gap-3 px-4">
+                {trendingKeywords.map((keyword, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => handleSendMessage(keyword)} 
+                    className="bg-white/80 hover:bg-sky-800 border border-slate-200 px-6 py-3 rounded-full transition-all hover:shadow-xl hover:-translate-y-1 group flex items-center gap-2"
+                  >
+                    <span className="text-xs font-black text-slate-600 group-hover:text-white transition-colors">{keyword}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300 group-hover:text-sky-300"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   </button>
                 ))}
               </div>

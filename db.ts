@@ -289,6 +289,39 @@ export const fetchQueryStats = async (period: 'day' | 'week' | 'month'): Promise
   return { totalQueries: logs.length, docUsage, timeChartData };
 };
 
+export const fetchTopKeywords = async (limit: number = 6): Promise<string[]> => {
+  const stats = await fetchQueryStats('month');
+  const docs = await fetchDocumentsFromDB();
+  
+  const keywordsSet = new Set<string>();
+  
+  // 從熱門文件的標籤中提取
+  stats.docUsage.forEach(usage => {
+    const doc = docs.find(d => d.id === usage.docId);
+    if (doc?.tags) {
+      doc.tags.split(',').map(t => t.trim()).filter(Boolean).forEach(t => keywordsSet.add(t));
+    }
+  });
+
+  // 如果關鍵字不足，從最新文件的標籤中補充
+  if (keywordsSet.size < limit) {
+    docs.slice(0, 10).forEach(doc => {
+      if (doc.tags) {
+        doc.tags.split(',').map(t => t.trim()).filter(Boolean).forEach(t => keywordsSet.add(t));
+      }
+    });
+  }
+
+  // 如果還是不足，則放一些預設關鍵字或類型
+  const defaults = ['人事規章', '財務報銷', '內控管理', '業務獎金', '請假流程'];
+  let result = Array.from(keywordsSet);
+  if (result.length < limit) {
+    defaults.forEach(d => { if(result.length < limit) result.push(d); });
+  }
+
+  return result.slice(0, limit);
+};
+
 export const fetchTopDocuments = async (limit: number = 3): Promise<KBDocument[]> => {
   const stats = await fetchQueryStats('month');
   const docs = await fetchDocumentsFromDB();
