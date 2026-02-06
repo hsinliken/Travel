@@ -44,6 +44,7 @@ const FilePreviewModal: React.FC<{
   const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt);
   const isPdf = fileExt === 'pdf';
   const isDocx = fileExt === 'docx';
+  const isOldDoc = fileExt === 'doc'; // 偵測舊版 .doc
 
   useEffect(() => {
     if (isExcel) fetchExcel();
@@ -67,7 +68,7 @@ const FilePreviewModal: React.FC<{
       setExcelData(data);
       if (workbook.SheetNames.length > 0) setActiveSheet(workbook.SheetNames[0]);
     } catch (err: any) {
-      setError("由於瀏覽器安全性限制，無法在此直接預覽 Excel 內容。請下載後查看。");
+      setError("由於瀏覽器安全性限制，無法在此直接預覽內容。請下載後查看。");
     } finally {
       setLoading(false);
     }
@@ -81,7 +82,7 @@ const FilePreviewModal: React.FC<{
       const result = await mammoth.convertToHtml({ arrayBuffer });
       setDocxHtml(result.value);
     } catch (err: any) {
-      setError("無法解析 Word 檔案，請下載後查閱。");
+      setError("無法解析此 Word 檔案，請點擊右上方下載按鈕查看。");
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ const FilePreviewModal: React.FC<{
         <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-white z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sky-800 rounded-xl flex items-center justify-center text-white text-xl shadow-inner">
-              {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : isDocx ? '📝' : '📎'}
+              {isExcel ? '📊' : isImage ? '🖼️' : isPdf ? '📄' : (isDocx || isOldDoc) ? '📝' : '📎'}
             </div>
             <div>
               <h3 className="font-black text-slate-800 truncate max-w-[200px] md:max-w-md">{displayFileName}</h3>
@@ -104,7 +105,7 @@ const FilePreviewModal: React.FC<{
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a href={url} download target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+            <a href={url} download target="_blank" rel="noopener noreferrer" className="p-2.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500" title="下載檔案">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
             <button onClick={onClose} className="p-2.5 hover:bg-red-50 hover:text-red-500 rounded-full transition-all text-slate-400">
@@ -117,6 +118,15 @@ const FilePreviewModal: React.FC<{
             <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-800"></div>
               <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">AI 正在讀取內容...</p>
+            </div>
+          ) : isOldDoc ? (
+            <div className="flex flex-col items-center justify-center h-full text-center max-w-lg mx-auto">
+              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 text-3xl mb-6">⚠️</div>
+              <p className="text-slate-800 font-black mb-4 text-xl">這是舊版 Word 檔案 (.doc)</p>
+              <p className="text-slate-500 font-medium mb-8 leading-relaxed">
+                瀏覽器無法直接預覽舊版二進位格式。請點擊下方按鈕下載，或建議管理員將檔案另存為新版 <b>.docx</b> 格式以獲得自動即時預覽功能。
+              </p>
+              <a href={url} download target="_blank" rel="noopener noreferrer" className="bg-sky-800 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-sky-900/20 active:scale-95 transition-all">立即下載檢視</a>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full text-center">

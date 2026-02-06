@@ -1,5 +1,5 @@
 {
-  "name": "TravelPulse RAG Knowledge Base",
+  "name": "大鷹知識庫",
   "description": "A sophisticated AI-powered travel knowledge base using RAG technology for accurate information retrieval and customer support automation.",
   "requestFramePermissions": [
     "camera"

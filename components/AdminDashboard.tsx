@@ -261,9 +261,9 @@ const SettingsDashboard: React.FC<{ settings: KBSettings; onUpdate: (s: KBSettin
                 onChange={e => setFormData({ ...formData, model: e.target.value })} 
                 className={inputClass}
               >
-                <option value="gemini-3-flash-preview">Gemini 3 Flash (快速且平衡 - 推薦)</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash (快速且平衡 - 預設)</option>
                 <option value="gemini-3-pro-preview">Gemini 3 Pro (具備更強推理能力，較慢)</option>
-                <option value="gemini-2.5-flash-lite-latest">Gemini 2.5 Flash Lite (極速且經濟)</option>
+                <option value="gemini-flash-lite-latest">Gemini Flash Lite (極速且經濟)</option>
               </select>
             </div>
 
